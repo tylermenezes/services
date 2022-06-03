@@ -1,0 +1,25 @@
+{
+  "dependencies": {
+    "dotenv": "^16.0.1",
+    "node-schedule": "^2.1.0",
+    "todoist": "^0.5.1"
+  },
+  "devDependencies": {
+    "@types/node": "^14.0.27",
+    "@types/node-fetch": "^2.5.7",
+    "@types/node-schedule": "^2.1.0",
+    "@types/object.fromentries": "^2.0.1",
+    "@types/ws": "^8.5.3",
+    "ts-node": "^8.10.2",
+    "ts-node-dev": "^1.0.0-pre.56",
+    "typescript": "^3.9.7"
+  },
+  "scripts": {
+    "start": "node dist",
+    "clean": "rm -rf dist",
+    "build": "npm -s run clean && npm -s run generate && npx tsc",
+    "generate": "prisma generate",
+    "dev": "ts-node-dev --no-notify --respawn --transpile-only src",
+    "debug": "DEBUG=* ts-node-dev --no-notify --respawn src"
+  }
+}
