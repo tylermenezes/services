@@ -1,4 +1,7 @@
 {
+  "name": "@tylermenezes/todoist-automations",
+  "license": "Artistic-2.0",
+  "private": true,
   "dependencies": {
     "dotenv": "^16.0.1",
     "node-schedule": "^2.1.0",
@@ -17,8 +20,7 @@
   "scripts": {
     "start": "node dist",
     "clean": "rm -rf dist",
-    "build": "npm -s run clean && npm -s run generate && npx tsc",
-    "generate": "prisma generate",
+    "build": "npm -s run clean && npx tsc",
     "dev": "ts-node-dev --no-notify --respawn --transpile-only src",
     "debug": "DEBUG=* ts-node-dev --no-notify --respawn src"
   }
