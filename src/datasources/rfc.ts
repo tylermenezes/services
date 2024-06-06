@@ -7,6 +7,9 @@ import schedule from 'node-schedule';
 interface NoteEnhance {
   tags: string[]
   image?: string
+  slug: string
+  publish: boolean
+  unlisted: boolean
 }
 let notes: (NoteEntry & NoteEnhance)[] = [];
 
@@ -23,13 +26,20 @@ export async function rfcUpdate() {
       const fm = markdownFrontmatter<{
         image?: string,
         publish?: boolean,
+        unlisted?: boolean,
         date?: string,
       }>(n.data);
       return {
         path: n.path,
+        slug: n.path
+          .slice('rfc/'.length)
+          .replace('.md', '')
+          .replace(/[^a-z0-9\-]/g, '-')
+          .replace(/--+/g, '-'),
         data: n.data,
         image: fm.image,
-        publish: fm.publish,
+        publish: fm.publish || false,
+        unlisted: fm.unlisted || false,
         createdAt: (fm.date ? DateTime.fromISO(fm.date).toJSDate() : n.createdAt) || n.createdAt,
         updatedAt: n.updatedAt,
         tags: ([...n.data.matchAll(/#[a-zA-Z-\_]+/g)] as string[][])
