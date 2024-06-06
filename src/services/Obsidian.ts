@@ -21,11 +21,27 @@ interface NoteLeafDocument {
   type: 'leaf'
 }
 
+export interface NoteEntry {
+  path: string
+  data: string
+  createdAt: Date
+  updatedAt: Date
+}
+
 export class Obsidian {
   private nano: Nano.DocumentScope<unknown>;
 
   constructor(url: string, db: string) {
     this.nano = Nano(url).use(db);
+  }
+
+  async noteList() {
+    const result = (await this.nano.find({
+      selector: { '$not': { type: 'leaf' } },
+      limit: 10000,
+      fields: ['path']
+    })).docs as unknown as { path: string }[];
+    return result.map(d => d.path).filter(Boolean);
   }
 
   async noteWrite(path: string, data: string) {
@@ -64,6 +80,30 @@ export class Obsidian {
       );
       return children.map(c => c.data).join('');
     } catch (ex) { return null; }
+  }
+
+  async noteReadMulti(paths: string[]): Promise<NoteEntry[]> {
+    const pointers = (await this.nano.fetch({ keys: paths }))
+      .rows
+      .filter(r => !r.error)
+      .map(r => (r as Nano.DocumentResponseRow<NotePointerDocument>).doc!);
+
+    const leafIds = pointers.flatMap(p => p.children);
+    const leaves = Object.fromEntries(
+      (await this.nano.fetch({ keys: leafIds }))
+        .rows
+        .filter(r => !r.error)
+        .map(r => (r as Nano.DocumentResponseRow<NoteLeafDocument>).doc!)
+        .map(r => [r._id, r.data])
+    );
+
+    return pointers
+      .map((p) => ({
+        path: p._id,
+        data: p.children.map(c => leaves[c]!).join(''),
+        createdAt: DateTime.fromMillis(p.ctime).toJSDate(),
+        updatedAt: DateTime.fromMillis(p.mtime).toJSDate(),
+      }));
   }
 
   async noteExists(path: string) {

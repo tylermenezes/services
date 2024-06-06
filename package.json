@@ -20,7 +20,8 @@
     "remark-gfm": "^3.0.1",
     "remark-parse": "^10.0.1",
     "todoist": "^1.1.0",
-    "unified": "^10.1.2"
+    "unified": "^10.1.2",
+    "yaml": "^2.4.3"
   },
   "devDependencies": {
     "@flydotio/dockerfile": "^0.5.7",

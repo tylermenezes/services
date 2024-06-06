@@ -3,6 +3,7 @@ import config from '@/config';
 import {
   fetchCv,
   fetchCvTex,
+  getRfcs,
   getUpcomingTrips,
 } from '@/datasources';
 
@@ -25,6 +26,10 @@ express.get('/cv.tex', async (_, res) => {
     .setHeader('Content-type', 'text/plain')
     .send(await fetchCvTex());
 });
+
+express.get('/rfcs.json', async (_, res) => {
+  res.send(getRfcs());
+})
 
 export function startServer() {
   express
