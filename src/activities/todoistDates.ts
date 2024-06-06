@@ -1,8 +1,8 @@
-import { todoist } from './services';
+import { todoist } from '@/services';
 import schedule from 'node-schedule';
 import { DueDate, Item } from 'todoist/dist/v9-types';
 
-export async function fixDates() {
+export async function todoistDates() {
   console.log(`Syncing...`);
   await todoist.sync();
   console.log('Done!');
@@ -22,7 +22,7 @@ export async function fixDates() {
   console.log(`Done!`);
 }
 
-export function scheduleFixDates() {
-  const job = schedule.scheduleJob('*/5 * * * *', fixDates);
+export function scheduleTodoistDates() {
+  const job = schedule.scheduleJob('*/5 * * * *', todoistDates);
   job.invoke();
 }

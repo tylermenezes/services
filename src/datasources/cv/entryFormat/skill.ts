@@ -1,0 +1,1 @@
+export type SkillBlock = [(string | null), (string | null)[] | null];

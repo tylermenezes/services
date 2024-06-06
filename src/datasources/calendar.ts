@@ -2,7 +2,8 @@ import schedule from 'node-schedule';
 import IcalExpander from 'ical-expander';
 import { DateTime } from 'luxon';
 import fetch from 'cross-fetch';
-import config from '../config';
+import config from '@/config';
+import { Event } from 'ical.js';
 
 let calendars: IcalExpander[] = [];
 export function getEvents(after: Date, before: Date) {
@@ -22,7 +23,7 @@ export function getEvents(after: Date, before: Date) {
               location: o.item.location,
               attendees: o.item.attendees,
               component: o.item.component,
-            }))
+            }) as Event)
         ];
       })
       .sort((a, b) => a.startDate < b.startDate ? -1 : 1)

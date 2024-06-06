@@ -1,9 +1,9 @@
-import { scheduleCalendarUpdate } from "./utils/calendar";
-import { scheduleFixDates } from "./fixDates";
-import { scheduleWriteObsidian } from "./obsidian";
+import { scheduleDatasourceUpdates } from '@/datasources';
+import { scheduleActivities } from '@/activities';
+import { startServer } from './server';
 
 (async () => {
-  await scheduleCalendarUpdate();
-  scheduleFixDates();
-  scheduleWriteObsidian();
+  await scheduleDatasourceUpdates();
+  scheduleActivities();
+  startServer();
 })();
