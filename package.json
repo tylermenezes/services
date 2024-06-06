@@ -5,9 +5,10 @@
   "dependencies": {
     "dotenv": "^16.0.1",
     "node-schedule": "^2.1.0",
-    "todoist": "^0.5.1"
+    "todoist": "^1.1.0"
   },
   "devDependencies": {
+    "@flydotio/dockerfile": "^0.5.7",
     "@types/node": "^14.0.27",
     "@types/node-fetch": "^2.5.7",
     "@types/node-schedule": "^2.1.0",
