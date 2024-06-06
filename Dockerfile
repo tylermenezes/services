@@ -39,6 +39,9 @@ RUN yarn install --production=true
 # Final stage for app image
 FROM base
 
+ENV TZ="America/Los_Angeles"
+RUN date
+
 # Copy built application
 COPY --from=build /app /app
 

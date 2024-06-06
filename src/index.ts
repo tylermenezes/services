@@ -1,3 +1,9 @@
+import { scheduleCalendarUpdate } from "./utils/calendar";
 import { scheduleFixDates } from "./fixDates";
+import { scheduleWriteObsidian } from "./obsidian";
 
-scheduleFixDates();
+(async () => {
+  await scheduleCalendarUpdate();
+  scheduleFixDates();
+  scheduleWriteObsidian();
+})();
