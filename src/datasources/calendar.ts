@@ -4,6 +4,9 @@ import { DateTime } from 'luxon';
 import fetch from 'cross-fetch';
 import config from '@/config';
 import { Event } from 'ical.js';
+import debug from 'debug';
+
+const DEBUG = debug('services:datasources:calendar');
 
 let calendars: IcalExpander[] = [];
 export function getEvents(after: Date, before: Date) {
@@ -49,12 +52,14 @@ export function getEventsTomorrow() {
 }
 
 async function calendarUpdate() {
+  DEBUG('Updating calendars.');
   const calendarFeeds = await Promise.all(
     config.calendars.map(url => fetch(url).then(r => r.text()))
   );
   calendars = calendarFeeds
     .map(ics => new IcalExpander({ ics }))
     .filter(Boolean);
+  DEBUG(`${calendars.length} calendars fetched.`)
 }
 
 export async function scheduleCalendarUpdate() {

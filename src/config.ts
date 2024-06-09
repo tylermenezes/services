@@ -7,6 +7,10 @@ const missing = [
   'OBSIDIAN_CV_NOTE',
   'TRIPIT_CONSUMER_KEY',
   'TRIPIT_CONSUMER_SECRET',
+  'APPLE_USERNAME',
+  'APPLE_APP_PASSWORD',
+  'GOOGLE_USERNAME',
+  'GOOGLE_APP_PASSWORD',
 ].filter(e => !process.env[e]);
 if (missing.length > 0) throw new Error(`The following envvars are required: ${missing.join(', ')}`);
 
@@ -16,6 +20,14 @@ export default {
   },
   todoist: {
     apiKey: process.env.TODOIST_API_KEY!,
+  },
+  apple: {
+    username: process.env.APPLE_USERNAME!,
+    appPassword: process.env.APPLE_APP_PASSWORD!,
+  },
+  google: {
+    username: process.env.GOOGLE_USERNAME!,
+    appPassword: process.env.GOOGLE_APP_PASSWORD!,
   },
   obsidian: {
     couchDbUrl: process.env.OBSIDIAN_COUCHDB_URL!,

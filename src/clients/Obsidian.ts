@@ -1,6 +1,9 @@
 import Nano from "nano";
 import { createHash } from "crypto";
 import { DateTime } from "luxon";
+import debug from "debug";
+
+const DEBUG = debug('services:clients:obsidian');
 
 interface NotePointerDocument { 
   _id: string
@@ -12,6 +15,7 @@ interface NotePointerDocument {
   type: string
   children: string[]
   eden: {}
+  deleted?: boolean
 }
 
 interface NoteLeafDocument {
@@ -63,12 +67,19 @@ export class Obsidian {
     }
 
     try {
-      const existingNote = await this.nano.get(path) as NotePointerDocument;
-      pointerDoc._rev = existingNote._rev;
-      pointerDoc.ctime = existingNote.ctime;
+      const existingPointer = await this.nano.get(path) as NotePointerDocument;
+      pointerDoc._rev = existingPointer._rev;
+      pointerDoc.ctime = existingPointer.ctime;
     } catch (ex) {}
 
+    try {
+      const existingLeaf = await this.nano.get(leafDoc._id) as NoteLeafDocument;
+      leafDoc._rev = existingLeaf._rev;
+    } catch (ex) {}
+
+    DEBUG(`Writing ${leafDoc._id}`);
     await this.nano.insert(leafDoc);
+    DEBUG(`Writing ${pointerDoc._id}`);
     await this.nano.insert(pointerDoc);
   }
 
@@ -108,8 +119,10 @@ export class Obsidian {
 
   async noteExists(path: string) {
     try {
-      await this.nano.get(path) as NotePointerDocument;
+      const result = await this.nano.get(path) as NotePointerDocument;
+      if (result.deleted) return !result.deleted;
       return true;
-    } catch (ex) { return false; }
+    } catch (ex) { }
+    return false;
   }
 }

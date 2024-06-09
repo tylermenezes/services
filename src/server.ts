@@ -6,6 +6,9 @@ import {
   getRfcs,
   getUpcomingTrips,
 } from '@/datasources';
+import debug from 'debug';
+
+const DEBUG = debug('services:server');
 
 const express = Express();
 
@@ -35,6 +38,6 @@ export function startServer() {
   express
     .listen(
       config.app.port,
-      () => console.log(`Listening on http://0.0.0.0:${config.app.port}`)
+      () => DEBUG(`Listening on http://0.0.0.0:${config.app.port}`)
     );
 }

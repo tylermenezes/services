@@ -5,7 +5,7 @@ import {
   treeReorganizeByHeading,
   valuesRecursive,
 } from '@/utils';
-import { obsidian } from '@/services';
+import { obsidian } from '@/clients';
 import config from '@/config';
 import {
   SkillBlock,

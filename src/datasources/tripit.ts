@@ -1,18 +1,21 @@
 import schedule from 'node-schedule';
-import { tripit, TripItListTripResponse } from '@/services';
+import { tripit, TripItListTripResponse } from '@/clients';
 import config from '@/config';
 import { DateTime } from 'luxon';
+import debug from 'debug';
+
+const DEBUG = debug('services:datasources:tripit');
 
 async function tripitLogin() {
   if (config.tripit.requestToken && config.tripit.requestTokenSecret) {
     const [token, secret] = await tripit.getAccessToken(config.tripit.requestToken, config.tripit.requestTokenSecret);
-    console.log(`TRIPIT_ACCESS_TOKEN=${token}`);
-    console.log(`TRIPIT_ACCESS_TOKEN_SECRET=${secret}`);
+    DEBUG(`TRIPIT_ACCESS_TOKEN=${token}`);
+    DEBUG(`TRIPIT_ACCESS_TOKEN_SECRET=${secret}`);
   } else {
     const [token, secret] = await tripit.getRequestToken();
-    console.log(`https://www.tripit.com/oauth/authorize?oauth_token=${token}&oauth_callback=http://localhost`);
-    console.log(`TRIPIT_REQUEST_TOKEN=${token}`);
-    console.log(`TRIPIT_REQUEST_TOKEN_SECRET=${secret}`);
+    DEBUG(`https://www.tripit.com/oauth/authorize?oauth_token=${token}&oauth_callback=http://localhost`);
+    DEBUG(`TRIPIT_REQUEST_TOKEN=${token}`);
+    DEBUG(`TRIPIT_REQUEST_TOKEN_SECRET=${secret}`);
   }
 }
 
@@ -33,6 +36,7 @@ async function tripItUpdate() {
     return;
   }
 
+  DEBUG('Updating tripit.');
   try {
     const tripsRaw = await tripit.requestResource<TripItListTripResponse>(
       '/list/trip',
@@ -47,8 +51,8 @@ async function tripItUpdate() {
         endDate: DateTime.fromISO(t.end_date).toJSDate(),
         location: t.primary_location,
       }))
-      .sort((a, b) => a.startDate < b.startDate ? -1 : 1)
-      ;
+      .sort((a, b) => a.startDate < b.startDate ? -1 : 1);
+    DEBUG(`${trips.length} trips fetched.`);
   } catch (ex) {
     console.error(ex);
   }

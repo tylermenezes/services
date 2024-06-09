@@ -1,9 +1,11 @@
-import { obsidian } from '@/services';
-import { NoteEntry } from '@/services/Obsidian';
+import { obsidian, NoteEntry } from '@/clients';
 import { markdownFrontmatter, markdownParse } from '@/utils';
 import { DateTime } from 'luxon';
 import { Heading, Text } from 'mdast';
 import schedule from 'node-schedule';
+import debug from 'debug';
+
+const DEBUG = debug('services:datasources:rfc');
 
 interface NoteEnhance {
   title: string
@@ -20,6 +22,7 @@ export function getRfcs() {
 }
 
 export async function rfcUpdate() {
+  DEBUG('Updating RFCs.');
   const rfcNoteNames = (await obsidian.noteList())
     .filter(n => n.startsWith('rfc/'));
 
@@ -53,6 +56,7 @@ export async function rfcUpdate() {
       };
     })
     .filter(({ publish }) => !!publish);
+    DEBUG(`${notes.length} RFCs fetched.`);
 }
 
 export async function scheduleRfcUpdate() {
