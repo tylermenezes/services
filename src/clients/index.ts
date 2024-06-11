@@ -3,6 +3,7 @@ import { v9 as Todoist } from 'todoist';
 import { Obsidian } from './Obsidian';
 import { TripIt } from './TripIt';
 import { DAVClient } from 'tsdav';
+import { Timeshifter } from './Timeshifter';
 
 export * from './TripIt';
 export * from './Obsidian';
@@ -18,6 +19,12 @@ export const obsidian = new Obsidian(
 );
 
 export const todoist = Todoist(config.todoist.apiKey);
+
+export const timeshifter = new Timeshifter(
+  config.timeshifter.email,
+  config.timeshifter.password,
+  config.timeshifter.token
+);
 
 export const contacts = {
   apple: new DAVClient({

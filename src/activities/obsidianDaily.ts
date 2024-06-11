@@ -5,6 +5,7 @@ import { DateTime } from 'luxon';
 import { Event } from 'ical.js';
 import debug from 'debug';
 import { getContact } from '@/datasources';
+import { dedupe } from '@/utils';
 
 const DEBUG = debug('services:activities:obsidianDaily');
 
@@ -21,25 +22,29 @@ Tags: #y${now.toFormat('yyyy')} #y${now.toFormat('yyyy')}m${now.toFormat('MMM')}
 
 async function getAgendaEntry(event: Event) {
   const attendees = await Promise.all(
-    event.attendees?.length < 10
-      ? event.attendees.map(async (a) => {
-          const cn = JSON.parse(JSON.stringify(a))?.[1]?.cn as string;
-          if (cn.includes('@') && !cn.trim().includes(' ')) {
-            DEBUG(`Searching for contact with email ${cn}.`)
-            const contact = getContact({ email: cn });
-            if (contact) {
-              DEBUG('Contact found!');
-              return `[[@${contact.name.toLowerCase()}]]`;
-            }
-          } else if (cn.includes(' ')) {
-            return `[[@${cn.toLowerCase()}]]`
-          }
+    event.attendees.map(async (a) => {
+      const cn = JSON.parse(JSON.stringify(a))?.[1]?.cn as string;
+      if (cn.includes('@') && !cn.trim().includes(' ')) {
+        DEBUG(`Searching for contact with email ${cn}.`)
+        const contact = getContact({ email: cn });
+        if (contact) {
+          DEBUG('Contact found!');
+          return `[[@${contact.name.toLowerCase()}]]`;
+        }
+      } else if (cn.includes(' ')) {
+        return `[[@${cn.toLowerCase()}]]`
+      }
 
-          return cn;
-        })
-      : []
-    );
-  return `## ${event.summary}\n${attendees.length > 0 ? `\n**Attendees:** ${attendees.join(', ')}\n` : ''}\n- `;
+      return cn;
+    })
+  );
+
+  const uniqueAttendees = dedupe(attendees);
+  const attendeesDisplayed = uniqueAttendees.length < 10
+    ? uniqueAttendees
+    : uniqueAttendees.filter(a => a.substring(0, 3) === '[[@');
+
+  return `## ${event.summary}\n\n**Attendees:** ${attendeesDisplayed.join(', ')}\n`;
 }
 
 export async function obsidianDaily() {
@@ -48,7 +53,10 @@ export async function obsidianDaily() {
 
   if (!await obsidian.noteExists(dailyPath)) {
     const meetings = getEventsToday()
-      .filter(e => e.attendees.length > 1);
+      .filter(e => (
+        e.attendees.length > 1
+        && !e.summary.includes('Hours Due')
+      ));
 
     if (meetings.length === 0) {
       DEBUG(`No meetings on ${dailyPath}.`);
@@ -63,6 +71,6 @@ export async function obsidianDaily() {
 }
 
 export function scheduleObsidianDaily() {
-  const job = schedule.scheduleJob('1 * * * *', obsidianDaily);
+  const job = schedule.scheduleJob('3 */3 * * *', obsidianDaily);
   job.invoke();
 }

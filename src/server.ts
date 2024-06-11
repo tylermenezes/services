@@ -7,6 +7,7 @@ import {
   getUpcomingTrips,
 } from '@/datasources';
 import debug from 'debug';
+import { tripit } from './clients';
 
 const DEBUG = debug('services:server');
 
@@ -34,7 +35,25 @@ express.get('/rfcs.json', async (_, res) => {
   res.send(getRfcs());
 })
 
-export function startServer() {
+// HACK
+async function tripitLogin() {
+  if (config.tripit.requestToken && config.tripit.requestTokenSecret) {
+    const [token, secret] = await tripit.getAccessToken(config.tripit.requestToken, config.tripit.requestTokenSecret);
+    DEBUG(`TRIPIT_ACCESS_TOKEN=${token}`);
+    DEBUG(`TRIPIT_ACCESS_TOKEN_SECRET=${secret}`);
+  } else {
+    const [token, secret] = await tripit.getRequestToken();
+    DEBUG(`https://www.tripit.com/oauth/authorize?oauth_token=${token}&oauth_callback=http://localhost`);
+    DEBUG(`TRIPIT_REQUEST_TOKEN=${token}`);
+    DEBUG(`TRIPIT_REQUEST_TOKEN_SECRET=${secret}`);
+  }
+}
+
+export async function startServer() {
+  if (!config.tripit.accessToken || !config.tripit.accessTokenSecret) {
+    await tripitLogin();
+    return;
+  }
   express
     .listen(
       config.app.port,

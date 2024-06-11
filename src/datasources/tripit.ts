@@ -1,23 +1,10 @@
 import schedule from 'node-schedule';
-import { tripit, TripItListTripResponse } from '@/clients';
+import { TripIt, tripit, TripItFlight, TripItFlightSegment, TripItListTripResponse, TripItTrip } from '@/clients';
 import config from '@/config';
 import { DateTime } from 'luxon';
 import debug from 'debug';
 
 const DEBUG = debug('services:datasources:tripit');
-
-async function tripitLogin() {
-  if (config.tripit.requestToken && config.tripit.requestTokenSecret) {
-    const [token, secret] = await tripit.getAccessToken(config.tripit.requestToken, config.tripit.requestTokenSecret);
-    DEBUG(`TRIPIT_ACCESS_TOKEN=${token}`);
-    DEBUG(`TRIPIT_ACCESS_TOKEN_SECRET=${secret}`);
-  } else {
-    const [token, secret] = await tripit.getRequestToken();
-    DEBUG(`https://www.tripit.com/oauth/authorize?oauth_token=${token}&oauth_callback=http://localhost`);
-    DEBUG(`TRIPIT_REQUEST_TOKEN=${token}`);
-    DEBUG(`TRIPIT_REQUEST_TOKEN_SECRET=${secret}`);
-  }
-}
 
 export interface TripResponse {
   startDate: Date
@@ -25,40 +12,72 @@ export interface TripResponse {
   location: string
 }
 
-let trips: TripResponse[] = [];
+export type FlightSegment = TripItFlightSegment & { start_date: Date, end_date: Date };
+let trips: (Omit<TripItTrip, 'start_date' | 'end_date'> & { start_date: Date, end_date: Date, flights: TripItFlight[] })[] = [];
+let flightSegments: FlightSegment[] = [];
+
 export function getUpcomingTrips() {
   return trips;
 }
 
+export function getFlightSegments() {
+  return flightSegments;
+}
+
 async function tripItUpdate() {
-  if (!config.tripit.accessToken || !config.tripit.accessTokenSecret) {
-    await tripitLogin();
-    return;
-  }
-
   DEBUG('Updating tripit.');
-  try {
-    const tripsRaw = await tripit.requestResource<TripItListTripResponse>(
-      '/list/trip',
-      'GET',
-      config.tripit.accessToken,
-      config.tripit.accessTokenSecret
-    );
+  const now = new Date();
 
-    trips = (tripsRaw?.Trip || [])
-      .map(t => ({
-        startDate: DateTime.fromISO(t.start_date).toJSDate(),
-        endDate: DateTime.fromISO(t.end_date).toJSDate(),
-        location: t.primary_location,
-      }))
-      .sort((a, b) => a.startDate < b.startDate ? -1 : 1);
-    DEBUG(`${trips.length} trips fetched.`);
-  } catch (ex) {
-    console.error(ex);
-  }
+  const tripsRaw = ((await tripit.requestResource<TripItListTripResponse>(
+    '/list/trip',
+    'GET',
+    config.tripit.accessToken!,
+    config.tripit.accessTokenSecret!
+  ))?.Trip || [])
+  .map((t) => ({
+    ...t,
+    start_date: DateTime.fromISO(t.start_date).toJSDate(),
+    end_date: DateTime.fromISO(t.end_date).toJSDate(),
+  }))
+  .filter((t) => t.end_date > now)
+  .sort((a, b) => a.start_date < b.start_date ? -1 : 1);
+
+  const flights = Object.fromEntries(
+    await Promise.all(
+      tripsRaw.map(async (t) => [
+        t.id,
+        await tripit.requestResource<{AirObject: TripItFlight[]}>(
+          `/list/object/trip_id/${t.id}/type/air`,
+          'GET',
+          config.tripit.accessToken!,
+          config.tripit.accessTokenSecret!,
+        ).then(t => t?.AirObject || [])
+      ])
+    )
+  );
+
+  trips = tripsRaw.map(t => ({
+    ...t,
+    flights: flights[t.id] || [],
+  }));
+
+  flightSegments = trips
+    .flatMap(t => t.flights || [])
+    .flatMap(f => f.Segment || [])
+    .filter(s => s.StartDateTime && s.EndDateTime)
+    .map(s => ({
+      ...s,
+      start_date: TripIt.convertDateTime(s.StartDateTime!),
+      end_date: TripIt.convertDateTime(s.EndDateTime!),
+    }))
+    .sort((a, b) => a.start_date < b.start_date ? -1 : 1);
+
+  DEBUG(`${trips.length} trips and ${flightSegments.length} segments fetched.`);
 }
 
 export async function scheduleTripItUpdate() {
-  await tripItUpdate();
-  const job = schedule.scheduleJob('*/5 * * * *', tripItUpdate);
+  try {
+    await tripItUpdate();
+  } catch (ex) { DEBUG(ex); }
+  const job = schedule.scheduleJob('*/30 * * * *', tripItUpdate);
 }

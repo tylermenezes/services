@@ -11,6 +11,8 @@ const missing = [
   'APPLE_APP_PASSWORD',
   'GOOGLE_USERNAME',
   'GOOGLE_APP_PASSWORD',
+  'TIMESHIFTER_EMAIL',
+  'TIMESHIFTER_PASSWORD',
 ].filter(e => !process.env[e]);
 if (missing.length > 0) throw new Error(`The following envvars are required: ${missing.join(', ')}`);
 
@@ -28,6 +30,11 @@ export default {
   google: {
     username: process.env.GOOGLE_USERNAME!,
     appPassword: process.env.GOOGLE_APP_PASSWORD!,
+  },
+  timeshifter: {
+    email: process.env.TIMESHIFTER_EMAIL!,
+    password: process.env.TIMESHIFTER_PASSWORD!,
+    token: process.env.TIMESHIFTER_TOKEN, // Useful to avoid multiple calls to login() for debugging
   },
   obsidian: {
     couchDbUrl: process.env.OBSIDIAN_COUCHDB_URL!,
