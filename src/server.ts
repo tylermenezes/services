@@ -18,7 +18,11 @@ express.get('/', (_, res) => {
 });
 
 express.get('/trips.json', (_, res) => {
-  res.send(getUpcomingTrips());
+  res.send(getUpcomingTrips().map(t => ({
+    startDate: t.start_date,
+    endDate: t.end_date,
+    location: t.primary_location,
+  })));
 });
 
 express.get('/cv.json', async (_, res) => {
