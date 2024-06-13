@@ -81,6 +81,6 @@ export async function obsidianDaily() {
 }
 
 export function scheduleObsidianDaily() {
-  const job = schedule.scheduleJob('3 */3 * * *', obsidianDaily);
+  const job = schedule.scheduleJob('10 * * * *', obsidianDaily);
   job.invoke();
 }

@@ -87,5 +87,5 @@ async function contactsUpdate() {
 
 export async function scheduleContactsUpdate() {
   await contactsUpdate();
-  const job = schedule.scheduleJob('*/30 * * * *', scheduleContactsUpdate);
+  const job = schedule.scheduleJob('3 * * * *', scheduleContactsUpdate);
 }

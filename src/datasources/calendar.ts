@@ -77,5 +77,5 @@ async function calendarUpdate() {
 
 export async function scheduleCalendarUpdate() {
   await calendarUpdate();
-  const job = schedule.scheduleJob('*/5 * * * *', calendarUpdate);
+  const job = schedule.scheduleJob('5 * * * *', calendarUpdate);
 }

@@ -61,5 +61,5 @@ export async function rfcUpdate() {
 
 export async function scheduleRfcUpdate() {
   await rfcUpdate();
-  const job = schedule.scheduleJob('*/5 * * * *', rfcUpdate);
+  const job = schedule.scheduleJob('7 * * * *', rfcUpdate);
 }

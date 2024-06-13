@@ -98,6 +98,6 @@ export async function timeshifterSync() {
 }
 
 export function scheduleTimeshifterSync() {
-  const job = schedule.scheduleJob('4 */3 * * *', timeshifterSync);
+  const job = schedule.scheduleJob('14 * * * *', timeshifterSync);
   job.invoke();
 }

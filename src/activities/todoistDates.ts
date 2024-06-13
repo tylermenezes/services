@@ -26,6 +26,6 @@ export async function todoistDates() {
 }
 
 export function scheduleTodoistDates() {
-  const job = schedule.scheduleJob('*/5 * * * *', todoistDates);
+  const job = schedule.scheduleJob('15 * * * *', todoistDates);
   job.invoke();
 }
