@@ -41,8 +41,9 @@
     "typescript": "^5.4.5"
   },
   "scripts": {
-    "start": "DEBUG=services:* tsx src",
     "dev": "DEBUG=services:* tsx --watch src",
-    "debug": "DEBUG=* tsx --watch src"
+    "debug": "DEBUG=* tsx --watch src",
+    "build": "tsc && tsc-alias",
+    "start": "DEBUG=services:* node dist/"
   }
 }

@@ -6,6 +6,7 @@ import { Event } from 'ical.js';
 import debug from 'debug';
 import { getContact } from '@/datasources';
 import { dedupe } from '@/utils';
+import config from '@/config';
 
 const DEBUG = debug('services:activities:obsidianDaily');
 
@@ -39,7 +40,13 @@ async function getAgendaEntry(event: Event) {
     })
   );
 
-  const uniqueAttendees = dedupe(attendees);
+  const uniqueAttendees = dedupe(attendees)
+    .filter(a => (
+      !config.app.myEmails.includes(a)
+      && a !== `[[@${config.app.myName.toLowerCase()}]]`
+    ));
+  if (uniqueAttendees.length === 0) return `## ${event.summary}\n\n`;
+
   const attendeesDisplayed = uniqueAttendees.length < 10
     ? uniqueAttendees
     : uniqueAttendees.filter(a => a.substring(0, 3) === '[[@');
@@ -54,7 +61,10 @@ export async function obsidianDaily() {
   if (!await obsidian.noteExists(dailyPath)) {
     const meetings = getEventsToday()
       .filter(e => (
-        e.attendees.length > 1
+        (
+          e.attendees.length > 1
+          || (e.organizer && !config.app.myEmails.includes(e.organizer))
+        )
         && !e.summary.includes('Hours Due')
       ));
 

@@ -13,12 +13,16 @@ const missing = [
   'GOOGLE_APP_PASSWORD',
   'TIMESHIFTER_EMAIL',
   'TIMESHIFTER_PASSWORD',
+  'MY_EMAILS',
+  'MY_NAME',
 ].filter(e => !process.env[e]);
 if (missing.length > 0) throw new Error(`The following envvars are required: ${missing.join(', ')}`);
 
 export default {
   app: {
     port: process.env.PORT || 3000,
+    myEmails: process.env.MY_EMAILS!.split(',').filter(Boolean),
+    myName: process.env.MY_NAME!,
   },
   todoist: {
     apiKey: process.env.TODOIST_API_KEY!,

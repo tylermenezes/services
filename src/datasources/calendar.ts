@@ -8,10 +8,14 @@ import debug from 'debug';
 
 const DEBUG = debug('services:datasources:calendar');
 
-let calendars: IcalExpander[] = [];
+type ExtendedEvent = Event & { organizer?: string };
+
+let calendars: string[] = [];
 export function getEvents(after: Date, before: Date) {
   const matchingEvents = Object.fromEntries(
     calendars
+      .map(ics => new IcalExpander({ ics }))
+      .filter(Boolean)
       .flatMap(c => {
         const { events, occurrences } = c.between(after, before);
         return [
@@ -27,7 +31,19 @@ export function getEvents(after: Date, before: Date) {
               attendees: o.item.attendees,
               component: o.item.component,
             }) as Event)
-        ];
+        ]
+        .map((e: ExtendedEvent) => {
+          if (
+            e.component.getFirstProperty("organizer")
+            && typeof e.component.getFirstProperty("organizer").getFirstValue() === 'string'
+          ) {
+            e.organizer = e.component
+              .getFirstProperty("organizer")
+              .getFirstValue()
+              .replace('mailto:', '');
+          }
+          return e;
+        });
       })
       .sort((a, b) => a.startDate < b.startDate ? -1 : 1)
       .map(e => [e.uid, e]) // Deduplicate
@@ -53,12 +69,9 @@ export function getEventsTomorrow() {
 
 async function calendarUpdate() {
   DEBUG('Updating calendars.');
-  const calendarFeeds = await Promise.all(
+  calendars = await Promise.all(
     config.calendars.map(url => fetch(url).then(r => r.text()))
   );
-  calendars = calendarFeeds
-    .map(ics => new IcalExpander({ ics }))
-    .filter(Boolean);
   DEBUG(`${calendars.length} calendars fetched.`)
 }
 
