@@ -28,19 +28,21 @@ async function tripItUpdate() {
   DEBUG('Updating tripit.');
   const now = new Date();
 
-  const tripsRaw = ((await tripit.requestResource<TripItListTripResponse>(
+  const tripItResponse = (await tripit.requestResource<TripItListTripResponse>(
     '/list/trip',
     'GET',
     config.tripit.accessToken!,
     config.tripit.accessTokenSecret!
-  ))?.Trip || [])
-  .map((t) => ({
-    ...t,
-    start_date: DateTime.fromISO(t.start_date).toJSDate(),
-    end_date: DateTime.fromISO(t.end_date).toJSDate(),
-  }))
-  .filter((t) => t.end_date > now)
-  .sort((a, b) => a.start_date < b.start_date ? -1 : 1);
+  ))?.Trip;
+
+  const tripsRaw = (tripItResponse || [])
+    .map((t) => ({
+      ...t,
+      start_date: DateTime.fromISO(t.start_date).toJSDate(),
+      end_date: DateTime.fromISO(t.end_date).toJSDate(),
+    }))
+    .filter((t) => t.end_date > now)
+    .sort((a, b) => a.start_date < b.start_date ? -1 : 1);
 
   const flights = Object.fromEntries(
     await Promise.all(
