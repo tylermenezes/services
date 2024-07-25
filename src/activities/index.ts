@@ -1,11 +1,19 @@
+import debug from 'debug';
 import { scheduleTodoistDates } from "./todoistDates";
 import { scheduleObsidianDaily } from "./obsidianDaily";
 import { timeshifterSync } from './timeshifterSync';
 import { scheduleReportStats } from "./reportStats";
 
+const DEBUG = debug('services:activities');
+
+function pokemonActivity(fn: Function) {
+  try { fn() }
+  catch(ex){ DEBUG(ex); }
+}
+
 export function scheduleActivities() {
-  timeshifterSync();
-  scheduleTodoistDates();
-  scheduleObsidianDaily();
-  scheduleReportStats();
+  pokemonActivity(timeshifterSync);
+  pokemonActivity(scheduleTodoistDates);
+  pokemonActivity(scheduleObsidianDaily);
+  pokemonActivity(scheduleReportStats);
 }

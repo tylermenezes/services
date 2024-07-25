@@ -35,6 +35,11 @@ async function tripItUpdate() {
     config.tripit.accessTokenSecret!
   ))?.Trip;
 
+  if (!Array.isArray(tripItResponse)) {
+    DEBUG(`TripIt error, returned:`, tripItResponse);
+    return;
+  }
+
   const tripsRaw = (tripItResponse || [])
     .map((t) => ({
       ...t,
