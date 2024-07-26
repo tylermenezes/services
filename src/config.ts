@@ -13,6 +13,8 @@ const missing = [
   'GOOGLE_APP_PASSWORD',
   'TIMESHIFTER_EMAIL',
   'TIMESHIFTER_PASSWORD',
+  'IGNITE_TICKETTAILOR_KEY',
+  'IGNITE_SLACK_WEBHOOK',
   'MY_EMAILS',
   'MY_NAME',
 ].filter(e => !process.env[e]);
@@ -34,6 +36,10 @@ export default {
   google: {
     username: process.env.GOOGLE_USERNAME!,
     appPassword: process.env.GOOGLE_APP_PASSWORD!,
+  },
+  ignite: {
+    tickettailorKey: process.env.IGNITE_TICKETTAILOR_KEY!,
+    slackWebhook: process.env.IGNITE_SLACK_WEBHOOK!,
   },
   timeshifter: {
     email: process.env.TIMESHIFTER_EMAIL!,

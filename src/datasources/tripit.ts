@@ -28,7 +28,7 @@ async function tripItUpdate() {
   DEBUG('Updating tripit.');
   const now = new Date();
 
-  const tripItResponse = (await tripit.requestResource<TripItListTripResponse>(
+  let tripItResponse = (await tripit.requestResource<TripItListTripResponse>(
     '/list/trip',
     'GET',
     config.tripit.accessToken!,
@@ -36,8 +36,12 @@ async function tripItUpdate() {
   ))?.Trip;
 
   if (!Array.isArray(tripItResponse)) {
-    DEBUG(`TripIt error, returned:`, tripItResponse);
-    return;
+    if ('TripInvitees' in tripItResponse) {
+      tripItResponse = [tripItResponse];
+    } else {
+      DEBUG(`TripIt error, returned:`, tripItResponse);
+      return;
+    }
   }
 
   const tripsRaw = (tripItResponse || [])
