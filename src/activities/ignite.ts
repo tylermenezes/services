@@ -53,6 +53,5 @@ export async function postIgniteTicketUpdate() {
 }
 
 export function scheduleIgnite() {
-  const job = schedule.scheduleJob('0 12 * * *', postIgniteTicketUpdate);
-  job.invoke();
+  schedule.scheduleJob('0 12 * * *', postIgniteTicketUpdate);
 }

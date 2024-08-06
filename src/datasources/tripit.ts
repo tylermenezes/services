@@ -36,7 +36,7 @@ async function tripItUpdate() {
   ))?.Trip;
 
   if (!Array.isArray(tripItResponse)) {
-    if ('TripInvitees' in tripItResponse) {
+    if (typeof tripItResponse === 'object' && 'TripInvitees' in tripItResponse) {
       tripItResponse = [tripItResponse];
     } else {
       DEBUG(`TripIt error, returned:`, tripItResponse);

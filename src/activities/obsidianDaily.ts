@@ -32,8 +32,16 @@ async function getAgendaEntry(event: Event) {
           DEBUG('Contact found!');
           return `[[@${contact.name.toLowerCase()}]]`;
         }
-      } else if (cn.includes(' ')) {
-        return `[[@${cn.toLowerCase()}]]`
+      } else if (cn.includes(' ')) { // name
+        let fixedCn = cn.toLowerCase();
+
+        if (cn.includes(', ')) { // last, first (company) => first last
+          let [familyName, givenName] = cn.split(', ');
+          if (givenName.includes(' (')) givenName = givenName.split(' (')[0];
+          fixedCn = `${givenName} ${familyName}`;
+        }
+
+        return `[[@${fixedCn}]]`
       }
 
       return cn;
