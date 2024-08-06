@@ -10,6 +10,6 @@ export function parseGrants(content: Content[]): Grant {
   const infoNode = content[1].type === 'paragraph' && content[1];
 
   const [sponsor, date] = infoNode ? treeToString(infoNode.children.slice(0, 2)).split(', ').map(e => e.trim()) : [];
-  const recommended = infoNode ? treeToString(infoNode.children.slice(3)).toLowerCase().trim().includes('recommended') : false;
+  const recommended = infoNode ? treeToString(infoNode.children.slice(2,3)).toLowerCase().trim().includes('recommended') : false;
   return { title, sponsor, date, recommended };
 }

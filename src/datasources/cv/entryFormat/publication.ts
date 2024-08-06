@@ -18,7 +18,7 @@ export function parsePublication(_content: Content[] | HeadingTree): Publication
 
   const [conference, date] = infoNode ? treeToString(infoNode.children.slice(0, 2)).split(', ').map(e => e.trim()) : [];
   const authors = infoNode ? treeToString(infoNode.children.slice(3,4)).trim() : null;
-  const recommended = infoNode ? treeToString(infoNode.children.slice(4,5)).toLowerCase().trim().includes('recommended') : false;
+  const recommended = infoNode ? treeToString(infoNode.children.slice(5,6)).toLowerCase().trim().includes('recommended') : false;
   const cite = citeNode ? treeToString(citeNode.children).trim() : null;
   const abstract = abstractNode ? treeToString(abstractNode.children).trim() : null;
   return { url, title, conference, date, authors, recommended, cite, abstract };
