@@ -24,42 +24,57 @@ export function getFlightSegments() {
   return flightSegments;
 }
 
+async function fetchPages<T extends { page_num?: string, max_page?: string }>(
+  endpoint: string,
+  method: string,
+  page?: number,
+): Promise<T[]> {
+  console.log(`Fetching page ${page}`);
+  const resp = await tripit.requestResource<T>(
+    page ? `${endpoint}/page_num/${page}` : endpoint,
+    method,
+    config.tripit.accessToken!,
+    config.tripit.accessTokenSecret!
+  );
+
+  if (!resp.page_num || !resp.max_page) return [resp];
+  const pageNum = Number.parseInt(resp.page_num);
+  const maxPage = Number.parseInt(resp.max_page);
+
+  DEBUG(`Pagenated response detected, loading page ${pageNum+1}/${maxPage}`);
+
+  if (pageNum >= maxPage) return [resp];
+  return [
+    resp,
+    ...(await fetchPages<T>(endpoint, method, pageNum+1))
+  ];
+}
+
 async function tripItUpdate() {
   DEBUG('Updating tripit.');
   const now = new Date();
 
-  let tripItResponseRaw = (await tripit.requestResource<TripItListTripResponse>(
-    '/list/trip',
-    'GET',
-    config.tripit.accessToken!,
-    config.tripit.accessTokenSecret!
-  ));
-  
-  let tripItResponse = tripItResponseRaw?.Trip;
+  const tripItResponse = await fetchPages<TripItListTripResponse>(
+    '/list/trip/past/true/page_size/25',
+    'GET'
+  ).then(resp => resp.flatMap(p => {
+    if (typeof p === 'undefined' || typeof p.Trip === 'undefined') return [];
+    if (Array.isArray(p.Trip)) return p.Trip;
+    return p.Trip;
+  }));
 
-  if (!Array.isArray(tripItResponse)) {
-    if (typeof tripItResponse === 'object' && 'TripInvitees' in tripItResponse) {
-      tripItResponse = [tripItResponse];
-    } else if ('timestamp' in tripItResponse) {
-      tripItResponse = [];
-    } else {
-      DEBUG(`TripIt error, returned:`, tripItResponseRaw);
-      return;
-    }
-  }
-
-  const tripsRaw = (tripItResponse || [])
+  const tripsRaw = tripItResponse
     .map((t) => ({
       ...t,
       start_date: DateTime.fromISO(t.start_date).toJSDate(),
       end_date: DateTime.fromISO(t.end_date).toJSDate(),
     }))
-    .filter((t) => t.end_date > now)
     .sort((a, b) => a.start_date < b.start_date ? -1 : 1);
 
+  // Only fetch flights for upcoming trips
   const flights = Object.fromEntries(
     await Promise.all(
-      tripsRaw.map(async (t) => [
+      tripsRaw.filter(t => t.end_date > now).map(async (t) => [
         t.id,
         await tripit.requestResource<{AirObject: TripItFlight[]}>(
           `/list/object/trip_id/${t.id}/type/air`,

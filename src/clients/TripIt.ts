@@ -75,7 +75,14 @@ export interface TripItTrip {
   image_url: string
   is_private: string
   primary_location: string
-  PrimaryLocationAddress: any[]
+  PrimaryLocationAddress: {
+    address: string
+    city: string
+    state: string
+    country: string
+    latitude: string
+    longitude: string
+  }
   TripPurposes: any[]
   last_modified: string
   is_trip_owner_inner_circle_sharer: string
@@ -122,4 +129,7 @@ export interface TripItFlight {
 
 export interface TripItListTripResponse {
   Trip: TripItTrip[]
+  page_num?: string
+  page_size?: string
+  max_page?: string
 }

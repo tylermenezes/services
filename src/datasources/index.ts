@@ -13,10 +13,10 @@ async function pokemonDatasource(fn: () => Promise<any>) {
 }
 
 export async function scheduleDatasourceUpdates() {
+  await pokemonDatasource(scheduleTripItUpdate);
   await pokemonDatasource(scheduleLastFmUpdate);
   await pokemonDatasource(scheduleContactsUpdate);
   await pokemonDatasource(scheduleCalendarUpdate);
-  await pokemonDatasource(scheduleTripItUpdate);
   await pokemonDatasource(scheduleRfcUpdate);
 }
 

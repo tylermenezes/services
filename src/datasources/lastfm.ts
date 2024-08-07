@@ -2,15 +2,15 @@ import { lastFm } from '@/clients';
 import schedule from 'node-schedule';
 import debug from 'debug';
 import config from '@/config';
-import { WeeklyAlbum, Artist, Album } from 'lastfm-nodejs-client/dist/@types/lastfm.types';
+import { Artist, Album } from 'lastfm-nodejs-client/dist/@types/lastfm.types';
 
 const DEBUG = debug('services:datasources:lastfm');
 
-let top: { weeklyAlbum: WeeklyAlbum[], weeklyArtist: Artist[], album: Album[], artist: Artist[] } = {
+let top: { weeklyAlbum: Album[], weeklyArtist: Artist[], overallAlbum: Album[], overallArtist: Artist[] } = {
   weeklyAlbum: [],
   weeklyArtist: [],
-  album: [],
-  artist: [],
+  overallAlbum: [],
+  overallArtist: [],
 };
 
 export function getTopMusic() {
@@ -32,23 +32,23 @@ export async function lastFmUpdate() {
       'overall',
       '8',
     ),
-    lastFm.getWeeklyAlbumChart(
-      lastFm.method.user.getWeeklyAlbumChart,
+    lastFm.getTopAlbums(
+      lastFm.method.user.getTopAlbums,
       config.lastFm.username,
-      'overall',
+      '7day',
       '8',
     ),
-    lastFm.getWeeklyArtistChart(
-      lastFm.method.user.getWeeklyArtistChart,
+    lastFm.getTopArtists(
+      lastFm.method.user.getTopArtists,
       config.lastFm.username,
-      'overall',
+      '7day',
       '8',
     ),
   ]);
-  top.album = topAlbums.topalbums.album;
-  top.artist = topArtists.topartists.artist;
-  top.weeklyAlbum = weeklyTopAblums.weeklyalbumchart.album;
-  top.weeklyArtist = weeklyTopArtists.weeklyartistchart.artist;
+  top.overallAlbum = topAlbums.topalbums.album;
+  top.overallArtist = topArtists.topartists.artist;
+  top.weeklyAlbum = weeklyTopAblums.topalbums.album;
+  top.weeklyArtist = weeklyTopArtists.topartists.artist;
   DEBUG('Updated Lastfm.');
 }
 
