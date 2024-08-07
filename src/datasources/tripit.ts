@@ -28,18 +28,22 @@ async function tripItUpdate() {
   DEBUG('Updating tripit.');
   const now = new Date();
 
-  let tripItResponse = (await tripit.requestResource<TripItListTripResponse>(
+  let tripItResponseRaw = (await tripit.requestResource<TripItListTripResponse>(
     '/list/trip',
     'GET',
     config.tripit.accessToken!,
     config.tripit.accessTokenSecret!
-  ))?.Trip;
+  ));
+  
+  let tripItResponse = tripItResponseRaw?.Trip;
 
   if (!Array.isArray(tripItResponse)) {
     if (typeof tripItResponse === 'object' && 'TripInvitees' in tripItResponse) {
       tripItResponse = [tripItResponse];
+    } else if ('timestamp' in tripItResponse) {
+      tripItResponse = [];
     } else {
-      DEBUG(`TripIt error, returned:`, tripItResponse);
+      DEBUG(`TripIt error, returned:`, tripItResponseRaw);
       return;
     }
   }

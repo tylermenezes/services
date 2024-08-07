@@ -4,9 +4,16 @@ import { Obsidian } from './Obsidian';
 import { TripIt } from './TripIt';
 import { DAVClient } from 'tsdav';
 import { Timeshifter } from './Timeshifter';
+import LastFmApi from 'lastfm-nodejs-client';
 
 export * from './TripIt';
 export * from './Obsidian';
+
+export const lastFm = LastFmApi();
+lastFm.config.api_key = config.lastFm.apiKey;
+lastFm.config.share_secret = config.lastFm.apiSecret;
+lastFm.config.username = config.lastFm.username;
+lastFm.config.base_url = 'http://ws.audioscrobbler.com/2.0/';
 
 export const tripit = new TripIt(
   config.tripit.consumerKey,

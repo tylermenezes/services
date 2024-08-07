@@ -10,6 +10,7 @@
     "express": "^4.19.2",
     "ical-expander": "^3.1.0",
     "ical.js": "^2.0.1",
+    "lastfm-nodejs-client": "^1.5.2",
     "luxon": "^3.4.4",
     "mdast": "^3.0.0",
     "mdast-util-to-markdown": "^2.1.0",

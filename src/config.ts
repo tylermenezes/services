@@ -15,13 +15,19 @@ const missing = [
   'TIMESHIFTER_PASSWORD',
   'IGNITE_TICKETTAILOR_KEY',
   'IGNITE_SLACK_WEBHOOK',
+  'LASTFM_API_KEY',
+  'LASTFM_API_SECRET',
+  'LASTFM_SESSION_TOKEN',
+  'LASTFM_USERNAME',
   'MY_EMAILS',
   'MY_NAME',
+  'APP_SECRET',
 ].filter(e => !process.env[e]);
 if (missing.length > 0) throw new Error(`The following envvars are required: ${missing.join(', ')}`);
 
 export default {
   app: {
+    secret: process.env.APP_SECRET!,
     port: process.env.PORT || 3000,
     myEmails: process.env.MY_EMAILS!.split(',').filter(Boolean),
     myName: process.env.MY_NAME!,
@@ -45,6 +51,12 @@ export default {
     email: process.env.TIMESHIFTER_EMAIL!,
     password: process.env.TIMESHIFTER_PASSWORD!,
     token: process.env.TIMESHIFTER_TOKEN, // Useful to avoid multiple calls to login() for debugging
+  },
+  lastFm: {
+    apiKey: process.env.LASTFM_API_KEY!,
+    apiSecret: process.env.LASTFM_API_SECRET!,
+    session: process.env.LASTFM_SESSION_TOKEN!,
+    username: process.env.LASTFM_USERNAME!,
   },
   obsidian: {
     couchDbUrl: process.env.OBSIDIAN_COUCHDB_URL!,

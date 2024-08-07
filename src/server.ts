@@ -4,6 +4,7 @@ import {
   fetchCv,
   fetchCvTex,
   getRfcs,
+  getTopMusic,
   getUpcomingTrips,
 } from '@/datasources';
 import debug from 'debug';
@@ -39,25 +40,30 @@ express.get('/rfcs.json', async (_, res) => {
   res.send(getRfcs());
 })
 
-// HACK
-async function tripitLogin() {
-  if (config.tripit.requestToken && config.tripit.requestTokenSecret) {
-    const [token, secret] = await tripit.getAccessToken(config.tripit.requestToken, config.tripit.requestTokenSecret);
-    DEBUG(`TRIPIT_ACCESS_TOKEN=${token}`);
-    DEBUG(`TRIPIT_ACCESS_TOKEN_SECRET=${secret}`);
-  } else {
-    const [token, secret] = await tripit.getRequestToken();
-    DEBUG(`https://www.tripit.com/oauth/authorize?oauth_token=${token}&oauth_callback=http://localhost`);
-    DEBUG(`TRIPIT_REQUEST_TOKEN=${token}`);
-    DEBUG(`TRIPIT_REQUEST_TOKEN_SECRET=${secret}`);
-  }
-}
+express.get('/music.json', async (_, res) => {
+  res.send(getTopMusic());
+});
+
+const tripItSecrets: Record<string, string> = {};
+
+express.get(`/tripit/login/${config.app.secret}`, async (req, res) => {
+  const [token, secret] = await tripit.getRequestToken();
+  tripItSecrets[token] = secret;
+  res.redirect(`https://www.tripit.com/oauth/authorize?oauth_token=${token}&oauth_callback=https://svc.tyler.vc/tripit/login/${config.app.secret}/return/${token}`);
+});
+
+express.get(`/tripit/login/${config.app.secret}/return/:token`, async (req, res) => {
+  const requestSecret = tripItSecrets[req.params.token];
+  const [token, secret] = await tripit.getAccessToken(req.params.token, requestSecret);
+  config.tripit.accessToken = token;
+  config.tripit.accessTokenSecret = secret;
+
+  res
+    .header('Content-type', 'text/plain')
+    .send(`TRIPIT_ACCESS_TOKEN=${token}\nTRIPIT_ACCESS_TOKEN_SECRET=${secret}`);
+});
 
 export async function startServer() {
-  if (!config.tripit.accessToken || !config.tripit.accessTokenSecret) {
-    await tripitLogin();
-    return;
-  }
   express
     .listen(
       config.app.port,
