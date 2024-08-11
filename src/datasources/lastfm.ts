@@ -24,31 +24,39 @@ export async function lastFmUpdate() {
       lastFm.method.user.getTopAlbums,
       config.lastFm.username,
       'overall',
-      '8',
+      '18',
     ),
     lastFm.getTopArtists(
       lastFm.method.user.getTopArtists,
       config.lastFm.username,
       'overall',
-      '8',
+      '18',
     ),
     lastFm.getTopAlbums(
       lastFm.method.user.getTopAlbums,
       config.lastFm.username,
       '7day',
-      '8',
+      '12',
     ),
     lastFm.getTopArtists(
       lastFm.method.user.getTopArtists,
       config.lastFm.username,
       '7day',
-      '8',
+      '12',
     ),
   ]);
-  top.overallAlbum = topAlbums.topalbums.album;
-  top.overallArtist = topArtists.topartists.artist;
-  top.weeklyAlbum = weeklyTopAblums.topalbums.album;
-  top.weeklyArtist = weeklyTopArtists.topartists.artist;
+  if (topAlbums.topalbums.album.length > 0)
+    top.overallAlbum = topAlbums.topalbums.album;
+
+  if (topArtists.topartists.artist.length > 0)
+    top.overallArtist = topArtists.topartists.artist;
+
+  if (weeklyTopAblums.topalbums.album.length > 0)
+    top.weeklyAlbum = weeklyTopAblums.topalbums.album;
+
+  if (weeklyTopArtists.topartists.artist.length > 0)
+    top.weeklyArtist = weeklyTopArtists.topartists.artist;
+
   DEBUG('Updated Lastfm.');
 }
 

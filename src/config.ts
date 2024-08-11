@@ -22,6 +22,9 @@ const missing = [
   'MY_EMAILS',
   'MY_NAME',
   'APP_SECRET',
+  'IGNITE_COGNITOFORMS_FORM_ID',
+  'IGNITE_COGNITOFORMS_API_KEY',
+  'SERVICES_COUCHDB_URL',
 ].filter(e => !process.env[e]);
 if (missing.length > 0) throw new Error(`The following envvars are required: ${missing.join(', ')}`);
 
@@ -46,6 +49,8 @@ export default {
   ignite: {
     tickettailorKey: process.env.IGNITE_TICKETTAILOR_KEY!,
     slackWebhook: process.env.IGNITE_SLACK_WEBHOOK!,
+    cognitoformsApiKey: process.env.IGNITE_COGNITOFORMS_API_KEY!,
+    cognitoformsFormId: process.env.IGNITE_COGNITOFORMS_FORM_ID!,
   },
   timeshifter: {
     email: process.env.TIMESHIFTER_EMAIL!,
@@ -62,6 +67,10 @@ export default {
     couchDbUrl: process.env.OBSIDIAN_COUCHDB_URL!,
     couchDb: process.env.OBSIDIAN_COUCHDB_DB || 'obsidian',
     cvNote: process.env.OBSIDIAN_CV_NOTE!,
+  },
+  services: {
+    couchDbUrl: process.env.SERVICES_COUCHDB_URL!,
+    couchDb: process.env.SERVICES_COUCHDB_DB || 'services',
   },
   calendars: Object.entries(process.env).filter(([k]) => k.startsWith('CALENDAR_')).map(([_, v]) => v!),
   tripit: {

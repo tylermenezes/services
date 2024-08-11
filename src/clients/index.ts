@@ -1,10 +1,12 @@
 import config from '@/config';
 import { v9 as Todoist } from 'todoist';
+import Nano from "nano";
 import { Obsidian } from './Obsidian';
 import { TripIt } from './TripIt';
 import { DAVClient } from 'tsdav';
 import { Timeshifter } from './Timeshifter';
 import LastFmApi from 'lastfm-nodejs-client';
+import { CouchDb } from './CouchDb';
 
 export * from './TripIt';
 export * from './Obsidian';
@@ -23,6 +25,11 @@ export const tripit = new TripIt(
 export const obsidian = new Obsidian(
   config.obsidian.couchDbUrl,
   config.obsidian.couchDb
+);
+
+export const couchDb = new CouchDb(
+  config.services.couchDbUrl,
+  config.services.couchDb
 );
 
 export const todoist = Todoist(config.todoist.apiKey);

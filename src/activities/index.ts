@@ -2,7 +2,6 @@ import debug from 'debug';
 import { scheduleTodoistDates } from "./todoistDates";
 import { scheduleObsidianDaily } from "./obsidianDaily";
 import { timeshifterSync } from './timeshifterSync';
-import { scheduleReportStats } from "./reportStats";
 import { scheduleIgnite } from "./ignite";
 
 const DEBUG = debug('services:activities');
@@ -16,6 +15,5 @@ export function scheduleActivities() {
   pokemonActivity(timeshifterSync);
   pokemonActivity(scheduleTodoistDates);
   pokemonActivity(scheduleObsidianDaily);
-  pokemonActivity(scheduleReportStats);
   pokemonActivity(scheduleIgnite);
 }
