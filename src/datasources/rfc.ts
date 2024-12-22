@@ -35,7 +35,8 @@ export async function rfcUpdate() {
         date?: string,
       }>(n.data);
       const md = markdownParse(n.data);
-      const h1 = md.find(n => n.type === 'heading' && (n as Heading).depth === 1) as Heading;
+      const h1 = md.find(n => n.type === 'heading' && (n as Heading).depth === 1) as Heading | undefined;
+      if (!h1) return null;
       return {
         title: h1.children.map(c => (c as Text).value).join(' '),
         path: n.path,
@@ -55,7 +56,7 @@ export async function rfcUpdate() {
           .filter(t => t !== 'rfc'),
       };
     })
-    .filter(({ publish }) => !!publish);
+    .filter((note) => note && !!note.publish) as (NoteEntry & NoteEnhance)[];
     DEBUG(`${notes.length} RFCs fetched.`);
 }
 

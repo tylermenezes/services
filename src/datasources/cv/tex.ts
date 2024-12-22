@@ -22,6 +22,9 @@ function* cvListItemToTex(
 
   if (item.outlet) yield item.outlet;
   if (item.venue) yield item.venue;
+  if (item.sponsor) yield item.sponsor;
+
+  if (item.authors) yield item.authors;
 
   if (item.blurb && (item as { type: string }).type === 'role') {
     yield ' \\\\\n\t\\begin{sublist}\n' + item.blurb.trim()
@@ -65,7 +68,7 @@ export async function fetchCvTex() {
       items: entries.publications,
     },
     {
-      title: 'Grants',
+      title: 'Research Grants',
       items: entries.grants,
     },
     {

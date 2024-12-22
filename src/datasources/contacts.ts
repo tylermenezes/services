@@ -41,14 +41,19 @@ async function contactsUpdate() {
   const cardDavPromise = Promise.all(
     Object.entries(contacts)
       .map(async ([source, client]) => {
-        await client.login();
-        const addressBooks = await client.fetchAddressBooks();
-        const cards = (await client.fetchVCards({ addressBook: addressBooks[0] }))
-          .map(c => parseVCard(c.data, source))
-          .filter(Boolean) as VCardContact[];
+        try {
+          await client.login();
+          const addressBooks = await client.fetchAddressBooks();
+          const cards = (await client.fetchVCards({ addressBook: addressBooks[0] }))
+            .map(c => parseVCard(c.data, source))
+            .filter(Boolean) as VCardContact[];
 
-        DEBUG(`${cards.length} contacts fetched from ${source}.`);
-        vcards[source as keyof typeof contacts] = cards;
+          DEBUG(`${cards.length} contacts fetched from ${source}.`);
+          vcards[source as keyof typeof contacts] = cards;
+        } catch (ex) {
+          DEBUG(`Error fetching contacts from ${source}:`);
+          DEBUG(ex);
+        }
       })
   );
 

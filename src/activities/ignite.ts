@@ -107,5 +107,4 @@ export async function updateAndPostIgniteSubmissions() {
 export function scheduleIgnite() {
   updateAndPostIgniteSubmissions();
   schedule.scheduleJob('0 12 * * *', postIgniteTicketUpdate);
-  schedule.scheduleJob('5 9-11,13-22 * * *', updateAndPostIgniteSubmissions);
 }
