@@ -3,7 +3,7 @@ import fetch from 'cross-fetch';
 import debug from 'debug';
 import config from '@/config';
 import { couchDb } from '@/clients';
-import { DocumentGetResponse } from 'nano';
+import fromAsync from 'array-from-async';
 
 const DEBUG = debug('services:activities:obsidianDaily');
 
@@ -21,6 +21,18 @@ interface TicketTailorEventsResponse {
     url: string
   }[]
 }
+
+interface TicketTailorOrdersResponse {
+  data: {
+    id: string
+    event_id: string
+    created_at: string
+    issued_tickets: object[]
+    referral_tag?: string
+    status: 'completed' | 'pending' | 'cancelled'
+  }[]
+}
+
 type CognitoSubmissionType = { IgniteNumber: string, Pitch: string };
 
 const SUBMISSION_COUNT_PATH = 'ignite/submissionCount';
@@ -35,6 +47,17 @@ async function fetchTicketTailorDetails() {
     }
   })
   .then(r => r.json() as unknown as TicketTailorEventsResponse)
+  .then(r => r.data);
+}
+
+async function fetchTicketTailorOrders(eventId: string) {
+  return fetch(`https://api.tickettailor.com/v1/orders?event_id=${eventId}`, {
+    headers: {
+      Authorization: `Basic ${config.ignite.tickettailorKey}`,
+      Accept: 'application/json'
+    }
+  })
+  .then(r => r.json() as unknown as TicketTailorOrdersResponse)
   .then(r => r.data);
 }
 
@@ -58,16 +81,29 @@ async function postSlackMessage(slackMessage: string) {
   });
 }
 
-export async function postIgniteTicketUpdate() {
+async function* getTicketTailorEventsAndReferrals(): AsyncGenerator<{name: string, tickets: number, referrals: Record<string, number>}> {
   const events = (await fetchTicketTailorDetails())
     .filter(e => e.status === 'published');
 
-  DEBUG(`${events.length} live Ignite events found.`);
-  
+  for (const event of events) {
+    const orders = await fetchTicketTailorOrders(event.id);
+    const referrals = orders.filter(o => o.referral_tag).reduce((acc, o) => {
+      acc[o.referral_tag || ''] = (acc[o.referral_tag || ''] || 0) + o.issued_tickets.length;
+      return acc;
+    }, {} as Record<string, number>);
+
+    yield { name: event.name, tickets: event.total_issued_tickets, referrals };
+  };
+}
+
+export async function postIgniteTicketUpdate() {
+  const events = await fromAsync(getTicketTailorEventsAndReferrals());
+
   if (!events || events.length === 0) return;
+  DEBUG(`${events.length} live Ignite events found.`);
 
   const slackMessage = events
-    .map(e => `- ${e.name}: ${e.total_issued_tickets}`)
+    .map(e => `- ${e.name}: ${e.tickets} tickets (${Object.entries(e.referrals).map(([referral, count]) => `${'`'}${referral}${'`'}: ${count}`).join(`, `)})`)
     .join(`\n`);
   await postSlackMessage(slackMessage);
 }
@@ -105,6 +141,5 @@ export async function updateAndPostIgniteSubmissions() {
 }
 
 export function scheduleIgnite() {
-  updateAndPostIgniteSubmissions();
   schedule.scheduleJob('0 12 * * *', postIgniteTicketUpdate);
 }

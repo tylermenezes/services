@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "array-from-async": "^3.0.0",
     "cross-fetch": "^4.0.0",
     "debug": "^4.3.5",
     "dotenv": "^16.0.1",

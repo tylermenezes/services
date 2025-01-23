@@ -48,4 +48,5 @@ COPY --from=build /app /app
 # Start the server by default, this can be overwritten at runtime
 EXPOSE 3000
 ENV DEBUG="services:*"
+ENV NODE_OPTIONS=--max_old_space_size=4096
 CMD [ "node", "dist/" ]
