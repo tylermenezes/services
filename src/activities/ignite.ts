@@ -51,14 +51,23 @@ async function fetchTicketTailorDetails() {
 }
 
 async function fetchTicketTailorOrders(eventId: string) {
-  return fetch(`https://api.tickettailor.com/v1/orders?event_id=${eventId}`, {
-    headers: {
-      Authorization: `Basic ${config.ignite.tickettailorKey}`,
-      Accept: 'application/json'
-    }
-  })
-  .then(r => r.json() as unknown as TicketTailorOrdersResponse)
-  .then(r => r.data);
+  const orders: TicketTailorOrdersResponse['data'] = [];
+  let hasMore = true;
+  while (hasMore) {
+    const after = orders.length > 0 ? orders[orders.length - 1].id : '';
+    DEBUG(`Fetching orders after ${after}`);
+    const page = (await fetch(`https://api.tickettailor.com/v1/orders?event_id=${eventId}&starting_after=${after}`, {
+      headers: {
+        Authorization: `Basic ${config.ignite.tickettailorKey}`,
+        Accept: 'application/json'
+      }
+    })
+    .then(r => r.json() as unknown as TicketTailorOrdersResponse)
+    .then(r => r.data));
+    hasMore = page.length > 0;
+    orders.push(...page);
+  }
+  return orders;
 }
 
 async function postSlackMessage(slackMessage: string) {
