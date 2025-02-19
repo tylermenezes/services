@@ -51,12 +51,12 @@ export class Obsidian {
   async noteWrite(path: string, data: string) {
     const mtime = DateTime.now().toUnixInteger();
     const leafDoc: NoteLeafDocument = {
-      _id: 'h:' + createHash('sha1').update(data).digest('base64').slice(0,13),
+      _id: 'h:' + createHash('sha1').update(data).digest('base64').slice(0,13).toLowerCase(),
       type: 'leaf',
       data,
     };
     const pointerDoc: NotePointerDocument = {
-      _id: path,
+      _id: path.toLowerCase(),
       path,
       ctime: mtime,
       mtime,
@@ -67,13 +67,13 @@ export class Obsidian {
     }
 
     try {
-      const existingPointer = await this.nano.get(path) as NotePointerDocument;
+      const existingPointer = await this.nano.get(path.toLowerCase()) as NotePointerDocument;
       pointerDoc._rev = existingPointer._rev;
       pointerDoc.ctime = existingPointer.ctime;
     } catch (ex) {}
 
     try {
-      const existingLeaf = await this.nano.get(leafDoc._id) as NoteLeafDocument;
+      const existingLeaf = await this.nano.get(leafDoc._id.toLowerCase()) as NoteLeafDocument;
       leafDoc._rev = existingLeaf._rev;
     } catch (ex) {}
 
@@ -85,9 +85,9 @@ export class Obsidian {
 
   async noteRead(path: string) {
     try {
-      const { children: childrenPaths } = await this.nano.get(path) as NotePointerDocument;
+      const { children: childrenPaths } = await this.nano.get(path.toLowerCase()) as NotePointerDocument;
       const children = await Promise.all(
-        childrenPaths.map(p => this.nano.get(p) as Promise<NoteLeafDocument>)
+        childrenPaths.map(p => this.nano.get(p.toLowerCase()) as Promise<NoteLeafDocument>)
       );
       return children.map(c => c.data).join('');
     } catch (ex) { return null; }
@@ -119,7 +119,7 @@ export class Obsidian {
 
   async noteExists(path: string) {
     try {
-      const result = await this.nano.get(path) as NotePointerDocument;
+      const result = await this.nano.get(path.toLowerCase()) as NotePointerDocument;
       if (result.deleted) return !result.deleted;
       return true;
     } catch (ex) { }
