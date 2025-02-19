@@ -29,7 +29,7 @@ async function fetchPages<T extends { page_num?: string, max_page?: string }>(
   method: string,
   page?: number,
 ): Promise<T[]> {
-  console.log(`Fetching page ${page}`);
+  console.log(`Fetching ${endpoint} page ${page || 1}`);
   const resp = await tripit.requestResource<T>(
     page ? `${endpoint}/page_num/${page}` : endpoint,
     method,
@@ -54,10 +54,18 @@ async function tripItUpdate() {
   DEBUG('Updating tripit.');
   const now = new Date();
 
-  const tripItResponse = await fetchPages<TripItListTripResponse>(
-    '/list/trip/past/true/page_size/25',
-    'GET'
-  ).then(resp => resp.flatMap(p => {
+  const tripItResponse = await Promise.all([
+    fetchPages<TripItListTripResponse>(
+      '/list/trip/past/true/page_size/25',
+      'GET'
+    ),
+    fetchPages<TripItListTripResponse>(
+      '/list/trip/past/false/page_size/25',
+      'GET'
+    ),
+  ])
+  .then(resp => resp.flat())
+  .then(resp => resp.flatMap(p => {
     if (typeof p === 'undefined' || typeof p.Trip === 'undefined') return [];
     if (Array.isArray(p.Trip)) return p.Trip;
     return p.Trip;
@@ -69,7 +77,7 @@ async function tripItUpdate() {
       start_date: DateTime.fromISO(t.start_date).toJSDate(),
       end_date: DateTime.fromISO(t.end_date).toJSDate(),
     }))
-    .sort((a, b) => a.start_date < b.start_date ? -1 : 1);
+    .sort((a, b) => a.start_date < b.start_date ? 1 : -1);
 
   // Only fetch flights for upcoming trips
   const flights = Object.fromEntries(
@@ -100,7 +108,7 @@ async function tripItUpdate() {
       start_date: TripIt.convertDateTime(s.StartDateTime!),
       end_date: TripIt.convertDateTime(s.EndDateTime!),
     }))
-    .sort((a, b) => a.start_date < b.start_date ? -1 : 1);
+    .sort((a, b) => a.start_date < b.start_date ? 1 : -1);
 
   DEBUG(`${trips.length} trips and ${flightSegments.length} segments fetched.`);
 }
