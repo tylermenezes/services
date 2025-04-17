@@ -36,6 +36,7 @@ export default {
     myName: process.env.MY_NAME!,
     disableDatasourceUpdates: process.env.DISABLE_DATASOURCE_UPDATES === '1',
     disableActivities: process.env.DISABLE_ACTIVITIES === '1',
+    debug: process.env.NODE_ENV !== 'production',
   },
   todoist: {
     apiKey: process.env.TODOIST_API_KEY!,
