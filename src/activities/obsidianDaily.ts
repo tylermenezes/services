@@ -63,7 +63,7 @@ async function getAgendaEntry(event: Event) {
 }
 
 export async function obsidianDaily() {
-  const dailyPath = 'daily/' + DateTime.now().toFormat('yyyy/LL-LLL/yyyy-LL-dd') + '.md';
+  const dailyPath = 'daily/' + DateTime.now().toFormat('yyyy/LL-LLL/yyyy-LL-dd').toLowerCase() + '.md';
   DEBUG(`Checking for ${dailyPath} in Obsidian.`);
 
   if (!await obsidian.noteExists(dailyPath)) {
@@ -84,7 +84,11 @@ export async function obsidianDaily() {
 
     const agenda = (await Promise.all(meetings.map(getAgendaEntry))).join(`\n\n`);
     const data = dailyTemplate() + `\n\n` + agenda;
-    obsidian.noteWrite(dailyPath, data);
+    try {
+      obsidian.noteWrite(dailyPath, data);
+    } catch (e) {
+      DEBUG(`Failed to create ${dailyPath}: ${e}`);
+    }
   }
 }
 

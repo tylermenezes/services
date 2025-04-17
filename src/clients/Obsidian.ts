@@ -120,9 +120,10 @@ export class Obsidian {
   async noteExists(path: string) {
     try {
       const result = await this.nano.get(path.toLowerCase()) as NotePointerDocument;
-      if (result.deleted) return !result.deleted;
       return true;
-    } catch (ex) { }
-    return false;
+    } catch (ex) {
+      console.log(ex);
+      return false;
+    }
   }
 }

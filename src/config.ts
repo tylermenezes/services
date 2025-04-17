@@ -34,6 +34,8 @@ export default {
     port: process.env.PORT || 3000,
     myEmails: process.env.MY_EMAILS!.split(',').filter(Boolean),
     myName: process.env.MY_NAME!,
+    disableDatasourceUpdates: process.env.DISABLE_DATASOURCE_UPDATES === '1',
+    disableActivities: process.env.DISABLE_ACTIVITIES === '1',
   },
   todoist: {
     apiKey: process.env.TODOIST_API_KEY!,
