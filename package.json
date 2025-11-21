@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@prisma/client": "6.4.1",
     "array-from-async": "^3.0.0",
     "cross-fetch": "^4.0.0",
     "debug": "^4.3.5",
@@ -45,6 +46,7 @@
     "@types/rss": "^0.0.32",
     "@types/sanitize-html": "^2.15.0",
     "@types/ws": "^8.5.3",
+    "prisma": "^6.4.1",
     "tsc-alias": "^1.8.10",
     "tsx": "^4.12.0",
     "typescript": "^5.4.5"

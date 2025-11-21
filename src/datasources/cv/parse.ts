@@ -7,6 +7,7 @@ import {
 } from '@/utils';
 import { obsidian } from '@/clients';
 import config from '@/config';
+import { nonNullable } from '@/utils';
 import {
   SkillBlock,
   WorkExperience,
@@ -34,6 +35,7 @@ export interface Cv {
   volunteering: WorkExperience[]
   service: WorkExperience[]
   affiliations: WorkExperience[]
+  fellowships: WorkExperience[]
   publications: Publication[]
   press: Press[]
   openSource: OpenSource[]
@@ -75,16 +77,18 @@ export async function fetchCv(onlyRecommended = false): Promise<Cv | null> {
     ?.map(s => s.replace(/\*\*/g, '').split(': '))
     ?.map(([cat, skill]): SkillBlock => [cat.trim() || null, skill?.split(',')?.map(e => e?.trim() || null) || null]);
 
-  const roles = Object.values(mdParsed['Work Experience'] || {}).slice(1).map(parseWorkExperience);
-  const education = Object.values(mdParsed['Education'] || {}).slice(1).map(parseEducation);
-  const volunteering = Object.values(mdParsed['Volunteering'] || {}).slice(1).map(parseWorkExperience);
-  const service = Object.values(mdParsed['Professional Service'] || {}).slice(1).map(parseWorkExperience);
-  const affiliations = Object.values(mdParsed['Affiliations and Professional Organizations'] || {}).slice(1).map(parseWorkExperience);
-  const publications = Object.values(mdParsed['Publications'] || {}).slice(1).map(parsePublication).filter(filterRecommended);
-  const press = Object.values(mdParsed['Press Coverage'] || {}).slice(1).map(parsePress).filter(filterRecommended);
-  const grants = Object.values(mdParsed['Research Grants'] || {}).slice(1).map(parseGrants).filter(filterRecommended);
-  const openSource = Object.values(mdParsed['Public Work'] || {}).slice(1).map(parseOpenSource);
-  const talksInterviews = Object.values(mdParsed['Talks & Interviews'] || {}).slice(1).map(parseTalks).filter(filterRecommended);
+  const roles = Object.values(mdParsed['Work Experience'] || {}).slice(1).map(parseWorkExperience).filter(nonNullable);
+  const education = Object.values(mdParsed['Education'] || {}).slice(1).map(parseEducation).filter(nonNullable);
+  const volunteering = Object.values(mdParsed['Volunteering'] || {}).slice(1).map(parseWorkExperience).filter(nonNullable);
+  const service = Object.values(mdParsed['Professional Service'] || {}).slice(1).map(parseWorkExperience).filter(nonNullable);
+  const affiliations = Object.values(mdParsed['Affiliations and Professional Organizations'] || {}).slice(1).map(parseWorkExperience).filter(nonNullable);
+  const fellowships = Object.values(mdParsed['Fellowships'] || {}).slice(1).map(parseWorkExperience).filter(nonNullable);
+  const publications = Object.values(mdParsed['Publications'] || {}).slice(1).map(parsePublication).filter(filterRecommended).filter(nonNullable);
+  const press = Object.values(mdParsed['Press Coverage'] || {}).slice(1).map(parsePress).filter(filterRecommended).filter(nonNullable);
+  const grants = Object.values(mdParsed['Research Grants'] || {}).slice(1).map(parseGrants).filter(filterRecommended).filter(nonNullable);
+  const openSource = Object.values(mdParsed['Public Work'] || {}).slice(1).map(parseOpenSource).filter(nonNullable);
+  const talksInterviews = Object.values(mdParsed['Talks & Interviews'] || {}).slice(1).map(parseTalks).filter(filterRecommended).filter(nonNullable);
+
 
   return {
     bio,
@@ -99,5 +103,6 @@ export async function fetchCv(onlyRecommended = false): Promise<Cv | null> {
     service: addTypeKeys(service, 'service'),
     grants: addTypeKeys(grants, 'grants'),
     affiliations: addTypeKeys(affiliations, 'affiliations'),
+    fellowships: addTypeKeys(fellowships, 'fellowship'),
   };
 }

@@ -7,6 +7,7 @@ import { DAVClient } from 'tsdav';
 import { Timeshifter } from './Timeshifter';
 import LastFmApi from 'lastfm-nodejs-client';
 import { CouchDb } from './CouchDb';
+import { BenaroyaTickets } from './BenaroyaTickets';
 
 export * from './TripIt';
 export * from './Obsidian';
@@ -31,6 +32,8 @@ export const couchDb = new CouchDb(
   config.services.couchDbUrl,
   config.services.couchDb
 );
+
+export const benaroyaTickets = new BenaroyaTickets();
 
 export const todoist = Todoist(config.todoist.apiKey);
 

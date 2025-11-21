@@ -2,7 +2,7 @@ import schedule from 'node-schedule';
 import fetch from 'cross-fetch';
 import debug from 'debug';
 import config from '@/config';
-import { couchDb } from '@/clients';
+import { benaroyaTickets, couchDb } from '@/clients';
 import fromAsync from 'array-from-async';
 
 const DEBUG = debug('services:activities:obsidianDaily');
@@ -149,6 +149,19 @@ export async function updateAndPostIgniteSubmissions() {
   await couchDb.set(SUBMISSION_COUNT_PATH, submissionCounts);
 }
 
+export async function postIgniteBenaroyaTicketUpdate() {
+  try {
+    const { soldSeats, totalSeats } = await benaroyaTickets.fetchAllSectionTickets(
+      config.ignite.benaroyaPerformanceId,
+      config.ignite.benaroyaFacilityId,
+      config.ignite.benaroyaScreenIds
+    );
+
+    await postSlackMessage(`${soldSeats}/${totalSeats} tickets sold at Benaroya Hall.`);
+  } catch (ex) { DEBUG(ex); }
+}
+
 export function scheduleIgnite() {
-  schedule.scheduleJob('0 12 * * *', postIgniteTicketUpdate);
+  //schedule.scheduleJob('0 12 * * *', postIgniteTicketUpdate);
+  schedule.scheduleJob('0 12 * * *', postIgniteBenaroyaTicketUpdate);
 }

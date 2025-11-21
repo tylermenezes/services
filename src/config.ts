@@ -37,6 +37,7 @@ export default {
     disableDatasourceUpdates: process.env.DISABLE_DATASOURCE_UPDATES === '1',
     disableActivities: process.env.DISABLE_ACTIVITIES === '1',
     debug: process.env.NODE_ENV !== 'production',
+    db: process.env.DB!,
   },
   todoist: {
     apiKey: process.env.TODOIST_API_KEY!,
@@ -54,6 +55,9 @@ export default {
     slackWebhook: process.env.IGNITE_SLACK_WEBHOOK!,
     cognitoformsApiKey: process.env.IGNITE_COGNITOFORMS_API_KEY!,
     cognitoformsFormId: process.env.IGNITE_COGNITOFORMS_FORM_ID!,
+    benaroyaPerformanceId: process.env.IGNITE_BENAROYA_PERFORMANCE_ID!,
+    benaroyaFacilityId: process.env.IGNITE_BENAROYA_FACILITY_ID!,
+    benaroyaScreenIds: process.env.IGNITE_BENAROYA_SCREEN_IDS!.split(',').filter(Boolean),
   },
   timeshifter: {
     email: process.env.TIMESHIFTER_EMAIL!,

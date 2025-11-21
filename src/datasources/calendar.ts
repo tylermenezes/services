@@ -69,9 +69,24 @@ export function getEventsTomorrow() {
 
 async function calendarUpdate() {
   DEBUG('Updating calendars.');
-  calendars = await Promise.all(
-    config.calendars.map(url => fetch(url).then(r => r.text()))
+  const newCalendars = await Promise.all(
+    config.calendars.map(url => fetch(url)
+      .catch(e => {
+        DEBUG(`Error fetching ${url}: ${e}`);
+        return null;
+      })
+      .then(r => r?.text?.() || null)
+      .then(text => {
+        if (text?.trim?.()?.startsWith('<')) {
+          DEBUG(`Error fetching ${url}: ${text.replace(/\n/g, ' ')}`);
+          return null;
+        } else {
+          return text;
+        }
+      })
+    )
   );
+  const calendars = newCalendars.filter(Boolean);
   DEBUG(`${calendars.length} calendars fetched.`)
 }
 

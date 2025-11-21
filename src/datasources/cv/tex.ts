@@ -15,6 +15,8 @@ function* cvListItemToTex(
 
   if (item.interval) yield item.interval;
   else if (item.date) yield item.date;
+
+  if (item.sponsor) yield item.sponsor;
   
   if (item.role && item.company) yield `\\textbf{${item.role}, ${item.company}}`;
   if (item.degree && item.school) yield `${item.degree}, ${item.school}`;
@@ -22,7 +24,6 @@ function* cvListItemToTex(
 
   if (item.outlet) yield item.outlet;
   if (item.venue) yield item.venue;
-  if (item.sponsor) yield item.sponsor;
 
   if (item.authors) yield item.authors;
 
@@ -38,6 +39,7 @@ function cvListToTex(list: CvList): string {
     .map(i => 
       '\\item '
       + [...cvListItemToTex(i)]
+        .map(s => s.endsWith('.') ? s.slice(0, -1) : s)
         .join('. ')
         .replace(/\&/g, '\\&')
         .replace(/\$/g, '\\$')
@@ -78,6 +80,10 @@ export async function fetchCvTex() {
     {
       title: 'Lectures, Talks, Workshops',
       items: entries.talksInterviews,
+    },
+    {
+      title: 'Fellowships',
+      items: entries.fellowships,
     },
     {
       title: 'Affiliations',
