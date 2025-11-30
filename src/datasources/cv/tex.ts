@@ -107,7 +107,7 @@ export async function fetchCvTex() {
     })
     .join(`\n\n`);
 
-  const bio = (entries.bio || '').replace(/\[([^\[\]]+)\]\(([^\(\)]+)\)/g, "\\href{$2}{$1}");
+  const bio = (entries.bioResearch || '').replace(/\[([^\[\]]+)\]\(([^\(\)]+)\)/g, "\\href{$2}{$1}");
   const tex = (bio ? `\\section{Biography}\n${bio}\\vspace{0.25in}\n\n` : '') + texBody;
 
   return tex;

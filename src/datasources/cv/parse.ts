@@ -29,6 +29,7 @@ import {
 type WithType<T, U> = T & { type: U };
 export interface Cv {
   bio: string | null
+  bioResearch: string | null
   skills: SkillBlock[]
   roles: WorkExperience[]
   education: Education[]
@@ -42,7 +43,7 @@ export interface Cv {
   talksInterviews: Talk[]
   grants: Grant[]
 }
-export type CvList = Cv[keyof Omit<Cv, 'bio' | 'skills'>];
+export type CvList = Cv[keyof Omit<Cv, 'bio' | 'bioResearch' | 'skills'>];
 
 function addTypeKeys<T extends Omit<CvList[number], 'type'>, U>(list: T[], typeKey: U): WithType<T, U>[] {
   return list.map(e => ({ ...e, type: typeKey }));
@@ -71,6 +72,7 @@ export async function fetchCv(onlyRecommended = false): Promise<Cv | null> {
   
   // Extract parts from the markdown
   const bio = renderMarkdown(valuesRecursive(mdParsed.Bio || {}).slice(1));
+  const bioResearch = renderMarkdown(valuesRecursive(mdParsed['Research Bio'] || {}).slice(1));
   const skills = renderMarkdown(valuesRecursive(mdParsed.Skills || {}).slice(1))
     .trim()
     .split(`\n`)
@@ -92,6 +94,7 @@ export async function fetchCv(onlyRecommended = false): Promise<Cv | null> {
 
   return {
     bio,
+    bioResearch,
     skills,
     roles: addTypeKeys(roles, 'role'),
     education: addTypeKeys(education, 'education'),
