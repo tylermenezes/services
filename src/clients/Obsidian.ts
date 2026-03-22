@@ -97,7 +97,10 @@ export class Obsidian {
     const pointers = (await this.nano.fetch({ keys: paths }))
       .rows
       .filter(r => !r.error)
-      .map(r => (r as Nano.DocumentResponseRow<NotePointerDocument>).doc!);
+      .map(r => (r as Nano.DocumentResponseRow<NotePointerDocument>).doc!)
+      .filter(p => !p.deleted);
+
+    if (!pointers) return [];
 
     const leafIds = pointers.flatMap(p => p.children);
     const leaves = Object.fromEntries(

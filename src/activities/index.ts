@@ -1,5 +1,4 @@
 import debug from 'debug';
-import { scheduleTodoistDates } from "./todoistDates";
 import { scheduleObsidianDaily } from "./obsidianDaily";
 import { timeshifterSync } from './timeshifterSync';
 import { scheduleIgnite } from "./ignite";
@@ -13,7 +12,6 @@ function pokemonActivity(fn: Function) {
 
 export function scheduleActivities() {
   pokemonActivity(timeshifterSync);
-  pokemonActivity(scheduleTodoistDates);
   pokemonActivity(scheduleObsidianDaily);
   pokemonActivity(scheduleIgnite);
 }

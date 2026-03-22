@@ -27,6 +27,7 @@ export async function rfcUpdate() {
     .filter(n => n.startsWith('rfc/'));
 
   notes = (await obsidian.noteReadMulti(rfcNoteNames))
+    .filter(Boolean)
     .map(n => {
       const fm = markdownFrontmatter<{
         image?: string,
