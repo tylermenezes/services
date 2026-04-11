@@ -42,11 +42,21 @@ FROM base
 ENV TZ="America/Los_Angeles"
 RUN date
 
+# Install obsidian-headless
+RUN npm install -g obsidian-headless
+
 # Copy built application
 COPY --from=build /app /app
+
+# Copy and configure the entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Start the server by default, this can be overwritten at runtime
 EXPOSE 3000
 ENV DEBUG="services:*"
 ENV NODE_OPTIONS=--max_old_space_size=4096
-CMD [ "node", "dist/" ]
+# OBSIDIAN_AUTH_TOKEN  - set to your Obsidian account token
+# OBSIDIAN_VAULT_PATH  - path to vault pre-configured via 'ob sync-setup' (default: /vault)
+ENTRYPOINT [ "docker-entrypoint.sh" ]
+CMD []

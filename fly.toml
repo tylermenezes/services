@@ -43,3 +43,8 @@ kill_timeout = '5s'
   memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1
+
+[mounts]
+  source = "vault"
+  destination = "/vault"
+  processes= ["app"]

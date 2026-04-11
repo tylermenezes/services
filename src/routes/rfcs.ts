@@ -1,10 +1,10 @@
-import { Router } from 'express';
-import { getRfcs } from '@/datasources';
+import { Router } from "express";
+import { getRfcs } from "@/datasources";
 
 const router = Router();
 
-router.get('/rfcs.json', async (_, res) => {
-  res.send(getRfcs());
+router.get("/rfcs.json", async (_, res) => {
+  res.send(await getRfcs());
 });
 
 export default router;

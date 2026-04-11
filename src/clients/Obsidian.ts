@@ -1,131 +1,196 @@
-import Nano from "nano";
-import { createHash } from "crypto";
-import { DateTime } from "luxon";
+import { promises as fs, createReadStream } from "fs";
+import { createInterface as createRlInterface } from "node:readline/promises";
+import { join, dirname, relative } from "path";
+import YAML from "yaml";
 import debug from "debug";
+import watch from "node-watch";
+import config from "@/config";
 
-const DEBUG = debug('services:clients:obsidian');
-
-interface NotePointerDocument { 
-  _id: string
-  _rev?: string
-  path: string,
-  ctime: number
-  mtime: number
-  size: number
-  type: string
-  children: string[]
-  eden: {}
-  deleted?: boolean
-}
-
-interface NoteLeafDocument {
-  _id: string
-  _rev?: string
-  data: string
-  type: 'leaf'
-}
+const DEBUG = debug("services:clients:obsidian");
+const VAULT_DATA_PATH = config.obsidian.vaultDataPath;
 
 export interface NoteEntry {
-  path: string
-  data: string
-  createdAt: Date
-  updatedAt: Date
+  path: string;
+  data: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export class Obsidian {
-  private nano: Nano.DocumentScope<unknown>;
+  onUpdateListeners: ((path: string) => void)[] = [];
+  frontmatterCache: Map<string, Record<string, unknown> | null> = new Map();
+  ready: Promise<void>;
 
-  constructor(url: string, db: string) {
-    this.nano = Nano(url).use(db);
+  constructor() {
+    this.ready = this.initFrontmatterCache();
+
+    watch(
+      VAULT_DATA_PATH,
+      {
+        recursive: true,
+        filter(f, skip) {
+          // skip dotfiles/folders
+          if (/^\./.test(f)) return skip;
+          // only watch for md files
+          return /\.md$/.test(f);
+        },
+      },
+      (evt, name) => {
+        if (evt === "update") {
+          const partialName = name.substring(VAULT_DATA_PATH.length + 1);
+          this.onUpdateListeners.forEach((listener) => listener(partialName));
+        }
+      },
+    );
+    this.onFileChanged((path) => DEBUG(`${path} updated.`));
+    this.onFileChanged(async (path) => {
+      if (!path.endsWith(".md")) return;
+      DEBUG(`Updating frontmatter cache for ${path}`);
+      this.frontmatterCache.set(path, await this.noteReadFrontmatter(path));
+    });
   }
 
-  async noteList() {
-    const result = (await this.nano.find({
-      selector: { '$not': { type: 'leaf' } },
-      limit: 10000,
-      fields: ['path']
-    })).docs as unknown as { path: string }[];
-    return result.map(d => d.path).filter(Boolean);
+  private async initFrontmatterCache(): Promise<void> {
+    DEBUG("Initializing frontmatter cache...");
+    const paths = await this.noteList();
+    const mdPaths = paths.filter((p) => p.endsWith(".md"));
+    await Promise.all(
+      mdPaths.map(async (path) => {
+        this.frontmatterCache.set(path, await this.noteReadFrontmatter(path));
+      }),
+    );
+    DEBUG(
+      `Frontmatter cache initialized with ${this.frontmatterCache.size} entries.`,
+    );
   }
 
-  async noteWrite(path: string, data: string) {
-    const mtime = DateTime.now().toUnixInteger();
-    const leafDoc: NoteLeafDocument = {
-      _id: 'h:' + createHash('sha1').update(data).digest('base64').slice(0,13).toLowerCase(),
-      type: 'leaf',
-      data,
-    };
-    const pointerDoc: NotePointerDocument = {
-      _id: path.toLowerCase(),
-      path,
-      ctime: mtime,
-      mtime,
-      size: data.length,
-      type: 'plain',
-      children: [leafDoc._id],
-      eden: {}
+  noteFilterByFrontmatter(
+    predicate: (frontmatter: Record<string, unknown> | null) => boolean,
+  ): string[] {
+    const results: string[] = [];
+    for (const [path, frontmatter] of this.frontmatterCache) {
+      if (predicate(frontmatter)) results.push(path);
     }
-
-    try {
-      const existingPointer = await this.nano.get(path.toLowerCase()) as NotePointerDocument;
-      pointerDoc._rev = existingPointer._rev;
-      pointerDoc.ctime = existingPointer.ctime;
-    } catch (ex) {}
-
-    try {
-      const existingLeaf = await this.nano.get(leafDoc._id.toLowerCase()) as NoteLeafDocument;
-      leafDoc._rev = existingLeaf._rev;
-    } catch (ex) {}
-
-    DEBUG(`Writing ${leafDoc._id}`);
-    await this.nano.insert(leafDoc);
-    DEBUG(`Writing ${pointerDoc._id}`);
-    await this.nano.insert(pointerDoc);
+    return results;
   }
 
-  async noteRead(path: string) {
+  onFileChanged(listener: (path: string) => void) {
+    this.onUpdateListeners.push(listener);
+  }
+
+  async noteList(): Promise<string[]> {
+    const results: string[] = [];
+    const walk = async (dir: string) => {
+      let entries;
+      try {
+        entries = await fs.readdir(dir, { withFileTypes: true });
+      } catch {
+        return;
+      }
+      for (const entry of entries) {
+        const fullPath = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          await walk(fullPath);
+        } else if (entry.isFile()) {
+          results.push(relative(VAULT_DATA_PATH, fullPath));
+        }
+      }
+    };
+    await walk(VAULT_DATA_PATH);
+    return results;
+  }
+
+  async noteReadFrontmatter(
+    path: string,
+  ): Promise<Record<string, unknown> | null> {
+    if (!(await this.noteExists(path))) return null;
+    if (!path.endsWith(".md")) return null;
+    const fullPath = join(VAULT_DATA_PATH, path);
+
     try {
-      const { children: childrenPaths } = await this.nano.get(path.toLowerCase()) as NotePointerDocument;
-      const children = await Promise.all(
-        childrenPaths.map(p => this.nano.get(p.toLowerCase()) as Promise<NoteLeafDocument>)
-      );
-      return children.map(c => c.data).join('');
-    } catch (ex) { return null; }
+      const stream = createReadStream(fullPath);
+      const rl = createRlInterface({
+        input: stream,
+        crlfDelay: Infinity,
+      });
+
+      // Check if file starts with ---
+      for await (const line of rl) {
+        if (line.trim() === "---") break;
+        rl.close();
+        stream.close();
+        return null;
+      }
+
+      const fmLines: string[] = [];
+      for await (const line of rl) {
+        if (line.trim() === "---") break;
+        fmLines.push(line);
+      }
+
+      rl.close();
+      stream.close();
+
+      return YAML.parse(fmLines.join(`\n`)) as Record<string, unknown>;
+    } catch (ex) {
+      DEBUG(ex);
+      return null;
+    }
+  }
+
+  async noteGetModifiedTime(path: string): Promise<number> {
+    const fullPath = join(VAULT_DATA_PATH, path);
+    try {
+      const stat = await fs.stat(fullPath);
+      return stat.mtime.getTime();
+    } catch {
+      return 0;
+    }
+  }
+
+  async noteRead(path: string): Promise<string | null> {
+    try {
+      return await fs.readFile(join(VAULT_DATA_PATH, path), "utf-8");
+    } catch {
+      return null;
+    }
+  }
+
+  async noteWrite(path: string, data: string): Promise<void> {
+    const fullPath = join(VAULT_DATA_PATH, path);
+    await fs.mkdir(dirname(fullPath), { recursive: true });
+    DEBUG(`Writing ${path}`);
+    await fs.writeFile(fullPath, data, "utf-8");
   }
 
   async noteReadMulti(paths: string[]): Promise<NoteEntry[]> {
-    const pointers = (await this.nano.fetch({ keys: paths }))
-      .rows
-      .filter(r => !r.error)
-      .map(r => (r as Nano.DocumentResponseRow<NotePointerDocument>).doc!)
-      .filter(p => !p.deleted);
-
-    if (!pointers) return [];
-
-    const leafIds = pointers.flatMap(p => p.children);
-    const leaves = Object.fromEntries(
-      (await this.nano.fetch({ keys: leafIds }))
-        .rows
-        .filter(r => !r.error)
-        .map(r => (r as Nano.DocumentResponseRow<NoteLeafDocument>).doc!)
-        .map(r => [r._id, r.data])
+    const results = await Promise.all(
+      paths.map(async (path): Promise<NoteEntry | null> => {
+        const fullPath = join(VAULT_DATA_PATH, path);
+        try {
+          const [data, stat] = await Promise.all([
+            fs.readFile(fullPath, "utf-8"),
+            fs.stat(fullPath),
+          ]);
+          return {
+            path,
+            data,
+            createdAt: stat.birthtime,
+            updatedAt: stat.mtime,
+          };
+        } catch {
+          return null;
+        }
+      }),
     );
-
-    return pointers
-      .map((p) => ({
-        path: p._id,
-        data: p.children.map(c => leaves[c]!).join(''),
-        createdAt: DateTime.fromMillis(p.ctime).toJSDate(),
-        updatedAt: DateTime.fromMillis(p.mtime).toJSDate(),
-      }));
+    return results.filter(Boolean) as NoteEntry[];
   }
 
-  async noteExists(path: string) {
+  async noteExists(path: string): Promise<boolean> {
     try {
-      const result = await this.nano.get(path.toLowerCase()) as NotePointerDocument;
+      await fs.access(join(VAULT_DATA_PATH, path));
       return true;
-    } catch (ex) {
-      console.log(ex);
+    } catch {
       return false;
     }
   }

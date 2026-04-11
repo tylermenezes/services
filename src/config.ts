@@ -1,42 +1,41 @@
-import { config as loadEnv } from 'dotenv';
+import { config as loadEnv } from "dotenv";
 loadEnv();
 
 const missing = [
-  'TODOIST_API_KEY',
-  'OBSIDIAN_COUCHDB_URL',
-  'OBSIDIAN_CV_NOTE',
-  'TRIPIT_CONSUMER_KEY',
-  'TRIPIT_CONSUMER_SECRET',
-  'APPLE_USERNAME',
-  'APPLE_APP_PASSWORD',
-  'GOOGLE_USERNAME',
-  'GOOGLE_APP_PASSWORD',
-  'TIMESHIFTER_EMAIL',
-  'TIMESHIFTER_PASSWORD',
-  'IGNITE_TICKETTAILOR_KEY',
-  'IGNITE_SLACK_WEBHOOK',
-  'LASTFM_API_KEY',
-  'LASTFM_API_SECRET',
-  'LASTFM_SESSION_TOKEN',
-  'LASTFM_USERNAME',
-  'MY_EMAILS',
-  'MY_NAME',
-  'APP_SECRET',
-  'IGNITE_COGNITOFORMS_FORM_ID',
-  'IGNITE_COGNITOFORMS_API_KEY',
-  'SERVICES_COUCHDB_URL',
-].filter(e => !process.env[e]);
-if (missing.length > 0) throw new Error(`The following envvars are required: ${missing.join(', ')}`);
+  "TODOIST_API_KEY",
+  "OBSIDIAN_CV_NOTE",
+  "TRIPIT_CONSUMER_KEY",
+  "TRIPIT_CONSUMER_SECRET",
+  "APPLE_USERNAME",
+  "APPLE_APP_PASSWORD",
+  "GOOGLE_USERNAME",
+  "GOOGLE_APP_PASSWORD",
+  "TIMESHIFTER_EMAIL",
+  "TIMESHIFTER_PASSWORD",
+  "IGNITE_TICKETTAILOR_KEY",
+  "IGNITE_SLACK_WEBHOOK",
+  "LASTFM_API_KEY",
+  "LASTFM_API_SECRET",
+  "LASTFM_SESSION_TOKEN",
+  "LASTFM_USERNAME",
+  "MY_EMAILS",
+  "MY_NAME",
+  "APP_SECRET",
+  "IGNITE_COGNITOFORMS_FORM_ID",
+  "IGNITE_COGNITOFORMS_API_KEY",
+].filter((e) => !process.env[e]);
+if (missing.length > 0)
+  throw new Error(`The following envvars are required: ${missing.join(", ")}`);
 
 export default {
   app: {
     secret: process.env.APP_SECRET!,
     port: process.env.PORT || 3000,
-    myEmails: process.env.MY_EMAILS!.split(',').filter(Boolean),
+    myEmails: process.env.MY_EMAILS!.split(",").filter(Boolean),
     myName: process.env.MY_NAME!,
-    disableDatasourceUpdates: process.env.DISABLE_DATASOURCE_UPDATES === '1',
-    disableActivities: process.env.DISABLE_ACTIVITIES === '1',
-    debug: process.env.NODE_ENV !== 'production',
+    disableDatasourceUpdates: process.env.DISABLE_DATASOURCE_UPDATES === "1",
+    disableActivities: process.env.DISABLE_ACTIVITIES === "1",
+    debug: process.env.NODE_ENV !== "production",
     db: process.env.DB!,
   },
   todoist: {
@@ -57,7 +56,9 @@ export default {
     cognitoformsFormId: process.env.IGNITE_COGNITOFORMS_FORM_ID!,
     benaroyaPerformanceId: process.env.IGNITE_BENAROYA_PERFORMANCE_ID!,
     benaroyaFacilityId: process.env.IGNITE_BENAROYA_FACILITY_ID!,
-    benaroyaScreenIds: process.env.IGNITE_BENAROYA_SCREEN_IDS!.split(',').filter(Boolean),
+    benaroyaScreenIds: process.env
+      .IGNITE_BENAROYA_SCREEN_IDS!.split(",")
+      .filter(Boolean),
   },
   timeshifter: {
     email: process.env.TIMESHIFTER_EMAIL!,
@@ -71,15 +72,15 @@ export default {
     username: process.env.LASTFM_USERNAME!,
   },
   obsidian: {
-    couchDbUrl: process.env.OBSIDIAN_COUCHDB_URL!,
-    couchDb: process.env.OBSIDIAN_COUCHDB_DB || 'obsidian',
+    vaultPath: process.env.OBSIDIAN_VAULT_PATH || "/vault",
+    vaultDataPath: process.env.OBSIDIAN_VAULT_PATH
+      ? process.env.OBSIDIAN_VAULT_PATH + "/data"
+      : "/vault/data",
     cvNote: process.env.OBSIDIAN_CV_NOTE!,
   },
-  services: {
-    couchDbUrl: process.env.SERVICES_COUCHDB_URL!,
-    couchDb: process.env.SERVICES_COUCHDB_DB || 'services',
-  },
-  calendars: Object.entries(process.env).filter(([k]) => k.startsWith('CALENDAR_')).map(([_, v]) => v!),
+  calendars: Object.entries(process.env)
+    .filter(([k]) => k.startsWith("CALENDAR_"))
+    .map(([_, v]) => v!),
   tripit: {
     consumerKey: process.env.TRIPIT_CONSUMER_KEY!,
     consumerSecret: process.env.TRIPIT_CONSUMER_SECRET!,
@@ -88,4 +89,4 @@ export default {
     accessToken: process.env.TRIPIT_ACCESS_TOKEN,
     accessTokenSecret: process.env.TRIPIT_ACCESS_TOKEN_SECRET,
   },
-}
+};
