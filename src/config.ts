@@ -23,6 +23,7 @@ const missing = [
   "APP_SECRET",
   "IGNITE_COGNITOFORMS_FORM_ID",
   "IGNITE_COGNITOFORMS_API_KEY",
+  "TEX_SERVER",
 ].filter((e) => !process.env[e]);
 if (missing.length > 0)
   throw new Error(`The following envvars are required: ${missing.join(", ")}`);
@@ -89,4 +90,5 @@ export default {
     accessToken: process.env.TRIPIT_ACCESS_TOKEN,
     accessTokenSecret: process.env.TRIPIT_ACCESS_TOKEN_SECRET,
   },
+  texServer: process.env.TEX_SERVER,
 };

@@ -47,6 +47,7 @@ RUN npm install -g obsidian-headless
 
 # Copy built application
 COPY --from=build /app /app
+COPY templates /app/templates
 
 # Copy and configure the entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh

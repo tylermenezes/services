@@ -1,0 +1,106 @@
+\documentclass[11pt]{article}
+
+\usepackage{ucs}
+\usepackage[utf8x]{inputenc}
+\usepackage{textcomp}
+\renewcommand{\sfdefault}{phv}
+\usepackage[letterpaper,left=1.95in,right=1.3in,top=1.1in,bottom=1.1in]{geometry}
+\usepackage{fancyhdr}
+\usepackage{url}
+\PassOptionsToPackage{hyphens}{url}
+\makeatletter
+\makeatother
+\usepackage{enumitem}
+
+\usepackage{xcolor}
+\definecolor{customGreen}{RGB}{35, 114, 83}
+\definecolor{customBlack}{RGB}{35, 31, 32}
+\definecolor{customGray}{RGB}{148, 149, 152}
+
+\pagenumbering{gobble}
+\sloppy
+
+\renewcommand\UrlFont{\color{customBlack}\rmfamily}
+\usepackage[breaklinks]{hyperref}
+\hypersetup{colorlinks=true, linkcolor=customGreen, citecolor=customBlack, filecolor=customGreen, urlcolor=customGreen, unicode=true}
+\usepackage{titlesec}
+\setlength{\titlewidth}{2.2in}
+\titleformat{\section}[leftmargin]
+    {
+        \normalfont
+        \fontsize{12}{15}
+        \sffamily
+        \bfseries
+        \filleft
+    }
+    {}{0pt}{\color{customGreen}}
+\titlespacing{\section}{1.0in}{1.5ex plus .1ex minus .2ex}{1pc}
+
+\usepackage{tikz}
+\usepackage[framemethod=tikz]{mdframed}
+
+\newenvironment{cvlist}{
+    \begin{mdframed}[hidealllines=true, backgroundcolor=none, leftmargin =-1.3cm]
+    \color{customBlack}
+    \vspace{-0.3in}
+    \begin{list}{}{}
+    \setlength{\itemsep}{8pt}
+    \setlength{\parskip}{0em}
+    \setlength{\parsep}{1em}
+    \setlength{\parindent}{0em}
+}
+{
+    \end{list}
+    \vspace{0.25in}
+    \end{mdframed}
+}
+
+\newenvironment{sublist}{
+    \color{customBlack}
+    \vspace{-0.125in}
+    \begin{itemize}[align=parleft]
+    \setlength{\itemsep}{3pt}
+    \setlength{\parskip}{0em}
+    \setlength{\parsep}{1em}
+    \setlength{\parindent}{0em}
+}
+{
+    \end{itemize}
+    \vspace{0.1in}
+}
+
+\setlength{\parindent}{0em}
+\setlength{\parskip}{8pt}
+\begin{document}
+
+\hspace*{-1in}
+\noindent{
+    \normalfont
+    \fontsize{20}{15}
+    \sffamily
+    \bfseries
+    \color{customGreen}
+    \filleft
+    \textbf{Tyler Menezes}
+}
+
+\begin{minipage}[t]{5.1in}
+  \vspace{-0.48in}
+  \flushright
+  \footnotesize
+  \href{tel:12067394741}{+1 206-739-4741} \\
+  \href{mailto:x@tyler.vc}{x@tyler.vc} \\
+  \href{https://tyler.vc/}{tyler.vc}
+  \vspace{0.2in}
+\end{minipage}
+\medskip
+
+{{cvContent}}
+
+\medskip
+
+\hspace*{-1in} Automatically compiled on {{date}}.
+
+\hspace*{-1in} CV layout inspired by Benjamin Mako Hill and Kaylea Champion.
+
+\end{document}
