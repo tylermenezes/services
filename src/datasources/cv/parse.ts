@@ -17,6 +17,8 @@ import {
   OpenSource,
   Talk,
   Grant,
+  Certification,
+  HumanSubjectsResearch,
   parseWorkExperience,
   parseEducation,
   parsePublication,
@@ -24,6 +26,8 @@ import {
   parseGrants,
   parseOpenSource,
   parseTalks,
+  parseCertification,
+  parseHumanSubjectsResearch,
 } from './entryFormat';
 
 type WithType<T, U> = T & { type: U };
@@ -42,6 +46,8 @@ export interface Cv {
   openSource: OpenSource[]
   talksInterviews: Talk[]
   grants: Grant[]
+  certifications: Certification[]
+  humanSubjectsResearch: HumanSubjectsResearch[]
 }
 export type CvList = Cv[keyof Omit<Cv, 'bio' | 'bioResearch' | 'skills'>];
 
@@ -90,6 +96,8 @@ export async function fetchCv(onlyRecommended = false): Promise<Cv | null> {
   const grants = Object.values(mdParsed['Research Grants'] || {}).slice(1).map(parseGrants).filter(filterRecommended).filter(nonNullable);
   const openSource = Object.values(mdParsed['Public Work'] || {}).slice(1).map(parseOpenSource).filter(nonNullable);
   const talksInterviews = Object.values(mdParsed['Talks & Interviews'] || {}).slice(1).map(parseTalks).filter(filterRecommended).filter(nonNullable);
+  const certifications = Object.values(mdParsed['Certifications'] || {}).slice(1).map(parseCertification).filter(nonNullable);
+  const humanSubjectsResearch = Object.values(mdParsed['Human Subjects Research'] || {}).slice(1).map(parseHumanSubjectsResearch).filter(nonNullable);
 
 
   return {
@@ -107,5 +115,7 @@ export async function fetchCv(onlyRecommended = false): Promise<Cv | null> {
     grants: addTypeKeys(grants, 'grants'),
     affiliations: addTypeKeys(affiliations, 'affiliations'),
     fellowships: addTypeKeys(fellowships, 'fellowship'),
+    certifications: addTypeKeys(certifications, 'certification'),
+    humanSubjectsResearch: addTypeKeys(humanSubjectsResearch, 'humanSubjectsResearch'),
   };
 }

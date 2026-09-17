@@ -1,5 +1,7 @@
+export * from './certification';
 export * from './education';
 export * from './grant';
+export * from './humanSubjectsResearch';
 export * from './openSource';
 export * from './press';
 export * from './publication';

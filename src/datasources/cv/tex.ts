@@ -90,6 +90,14 @@ export async function fetchCvTex() {
       items: entries.affiliations,
     },
     {
+      title: 'Certifications',
+      items: entries.certifications,
+    },
+    {
+      title: 'Human Subjects Research',
+      items: entries.humanSubjectsResearch,
+    },
+    {
       title: 'Press',
       items: entries.press,
     },
