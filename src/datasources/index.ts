@@ -3,6 +3,7 @@ import { scheduleCalendarUpdate } from "./calendar";
 import { scheduleTripItUpdate } from "./tripit";
 import { scheduleContactsUpdate } from "./contacts";
 import { scheduleLastFmUpdate } from "./lastfm";
+import { scheduleZoteroUpdate } from "./zotero";
 
 const DEBUG = debug("services:datasources");
 
@@ -19,6 +20,7 @@ export async function scheduleDatasourceUpdates() {
   await pokemonDatasource(scheduleLastFmUpdate);
   await pokemonDatasource(scheduleContactsUpdate);
   await pokemonDatasource(scheduleCalendarUpdate);
+  await pokemonDatasource(scheduleZoteroUpdate);
 }
 
 export * from "./tripit";
@@ -27,3 +29,4 @@ export * from "./cv";
 export * from "./rfc";
 export * from "./contacts";
 export * from "./lastfm";
+export * from "./zotero";

@@ -90,5 +90,10 @@ export default {
     accessToken: process.env.TRIPIT_ACCESS_TOKEN,
     accessTokenSecret: process.env.TRIPIT_ACCESS_TOKEN_SECRET,
   },
+  zotero: {
+    // Optional; the Zotero datasource is skipped if either is unset.
+    apiKey: process.env.ZOTERO_API_KEY,
+    userId: process.env.ZOTERO_USER_ID,
+  },
   texServer: process.env.TEX_SERVER,
 };

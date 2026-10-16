@@ -5,10 +5,12 @@ import { Obsidian } from "./Obsidian";
 import { TripIt } from "./TripIt";
 import { DAVClient } from "tsdav";
 import { Timeshifter } from "./Timeshifter";
+import { Zotero } from "./Zotero";
 import LastFmApi from "lastfm-nodejs-client";
 
 export * from "./TripIt";
 export * from "./Obsidian";
+export * from "./Zotero";
 
 export const lastFm = LastFmApi();
 lastFm.config.api_key = config.lastFm.apiKey;
@@ -22,6 +24,11 @@ export const tripit = new TripIt(
 );
 
 export const obsidian = new Obsidian();
+
+export const zotero =
+  config.zotero.apiKey && config.zotero.userId
+    ? new Zotero(config.zotero.apiKey, config.zotero.userId)
+    : null;
 
 export const todoist = Todoist(config.todoist.apiKey);
 

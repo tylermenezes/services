@@ -7,6 +7,7 @@ import rfcsRoutes from './rfcs.js';
 import musicRoutes from './music.js';
 import tripitRoutes from './tripit.js';
 import rssRoutes from './rss.js';
+import zoteroRoutes from './zotero.js';
 
 const router = Router();
 
@@ -22,5 +23,6 @@ router.use(rfcsRoutes);
 router.use(musicRoutes);
 router.use(tripitRoutes);
 router.use(rssRoutes);
+router.use(zoteroRoutes);
 
 export default router;

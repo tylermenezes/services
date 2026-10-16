@@ -1,6 +1,6 @@
 import { promises as fs, createReadStream } from "fs";
 import { createInterface as createRlInterface } from "node:readline/promises";
-import { join, dirname, relative } from "path";
+import { join, dirname, relative, posix } from "path";
 import YAML from "yaml";
 import debug from "debug";
 import watch from "node-watch";
@@ -8,6 +8,21 @@ import config from "@/config";
 
 const DEBUG = debug("services:clients:obsidian");
 const VAULT_DATA_PATH = config.obsidian.vaultDataPath;
+
+// [[target]], [[target#heading]], [[target|alias]], ![[embed]]
+const WIKILINK = /!?\[\[([^\]|#^]+)([^\]]*)\]\]/g;
+// [text](href) and ![alt](href), with optional <angle brackets> or "title"
+const MDLINK = /!?\[[^\]]*\]\(<?([^)<>\s]+)>?(?:\s+"[^"]*")?\)/g;
+
+/**
+ * Whether a link target refers to the note with the given vault path (without extension). Like Obsidian, a link can
+ * use the note's name alone, or any trailing part of its path. Errs towards matching.
+ */
+function linkResolvesTo(target: string, name: string) {
+  const t = posix.normalize(target.trim().replace(/\.md$/i, "")).replace(/^(\.\/|\/)+/, "").toLowerCase();
+  const n = name.toLowerCase();
+  return t === n || n.endsWith(`/${t}`);
+}
 
 export interface NoteEntry {
   path: string;
@@ -184,6 +199,70 @@ export class Obsidian {
       }),
     );
     return results.filter(Boolean) as NoteEntry[];
+  }
+
+  async noteDelete(path: string): Promise<void> {
+    DEBUG(`Deleting ${path}`);
+    await fs.unlink(join(VAULT_DATA_PATH, path));
+    this.frontmatterCache.delete(path);
+  }
+
+  /** Renames a note and rewrites wikilinks to it in other notes, as Obsidian does. */
+  async noteRename(from: string, to: string): Promise<void> {
+    const backlinks = await this.noteBacklinks(from);
+    DEBUG(`Renaming ${from} to ${to}, updating links in ${backlinks.length} notes.`);
+    await fs.mkdir(dirname(join(VAULT_DATA_PATH, to)), { recursive: true });
+    await fs.rename(join(VAULT_DATA_PATH, from), join(VAULT_DATA_PATH, to));
+    this.frontmatterCache.set(to, this.frontmatterCache.get(from) ?? null);
+    this.frontmatterCache.delete(from);
+
+    const fromName = from.replace(/\.md$/, "");
+    const toName = to.replace(/\.md$/, "");
+    for (const path of backlinks) {
+      const data = await this.noteRead(path);
+      if (data === null) continue;
+      const updated = data.replace(WIKILINK, (link, target: string, rest: string) => {
+        if (!linkResolvesTo(target, fromName)) return link;
+        // Keep the link's style: full path if it used one, otherwise just the name.
+        const newTarget = target.includes("/") ? toName : toName.split("/").pop()!;
+        return link.replace(`[[${target}`, `[[${newTarget}`);
+      });
+      if (updated !== data) await this.noteWrite(path, updated);
+    }
+  }
+
+  /** Paths of notes which link to the given note, via wikilinks, embeds, or markdown links. */
+  async noteBacklinks(path: string): Promise<string[]> {
+    const name = path.replace(/\.md$/, "");
+    const notes = (await this.noteList()).filter(
+      (p) => p.endsWith(".md") && p !== path && !p.split("/").some((s) => s.startsWith(".")),
+    );
+    const linking = await Promise.all(
+      notes.map(async (p) => {
+        const data = await this.noteRead(p);
+        if (!data) return false;
+        for (const [, target] of data.matchAll(WIKILINK)) {
+          if (linkResolvesTo(target, name)) return true;
+        }
+        for (const [, href] of data.matchAll(MDLINK)) {
+          if (/^[a-z][a-z0-9+.-]*:/i.test(href)) continue; // External URL
+          let target: string;
+          try {
+            target = decodeURIComponent(href.split("#")[0]);
+          } catch {
+            continue;
+          }
+          // Markdown links may be relative to the linking note, or to the vault root.
+          if (
+            linkResolvesTo(target, name) ||
+            linkResolvesTo(posix.join(posix.dirname(p), target), name)
+          )
+            return true;
+        }
+        return false;
+      }),
+    );
+    return notes.filter((_, i) => linking[i]);
   }
 
   async noteExists(path: string): Promise<boolean> {
