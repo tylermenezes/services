@@ -8,6 +8,7 @@ import musicRoutes from './music.js';
 import tripitRoutes from './tripit.js';
 import rssRoutes from './rss.js';
 import zoteroRoutes from './zotero.js';
+import mcpRoutes from './mcp.js';
 
 const router = Router();
 
@@ -24,5 +25,6 @@ router.use(musicRoutes);
 router.use(tripitRoutes);
 router.use(rssRoutes);
 router.use(zoteroRoutes);
+router.use(mcpRoutes);
 
 export default router;

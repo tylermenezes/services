@@ -11,8 +11,13 @@ const VAULT_DATA_PATH = config.obsidian.vaultDataPath;
 
 // [[target]], [[target#heading]], [[target|alias]], ![[embed]]
 const WIKILINK = /!?\[\[([^\]|#^]+)([^\]]*)\]\]/g;
-// [text](href) and ![alt](href), with optional <angle brackets> or "title"
-const MDLINK = /!?\[[^\]]*\]\(<?([^)<>\s]+)>?(?:\s+"[^"]*")?\)/g;
+// [text](href) and ![alt](href), with optional "title". Groups: opening, <angle bracket href>, plain href, closing.
+const MDLINK = /(!?\[[^\]]*\]\()(?:<([^>]+)>|([^)\s]+))((?:\s+"[^"]*")?\))/g;
+const EXTERNAL_URL = /^[a-z][a-z0-9+.-]*:/i;
+
+function normalizeLinkTarget(target: string) {
+  return posix.normalize(target.trim().replace(/\.md$/i, "")).replace(/^(\.\/|\/)+/, "");
+}
 
 /**
  * Whether a link target refers to the note with the given vault path (without extension). Like Obsidian, a link can
@@ -22,6 +27,30 @@ function linkResolvesTo(target: string, name: string) {
   const t = posix.normalize(target.trim().replace(/\.md$/i, "")).replace(/^(\.\/|\/)+/, "").toLowerCase();
   const n = name.toLowerCase();
   return t === n || n.endsWith(`/${t}`);
+}
+
+/**
+ * The note (vault path without extension) a link target refers to, given every note's name: an exact path, or else the
+ * one note whose path ends with the target, preferring one in the linking note's folder. Null if no note matches, or
+ * several match equally.
+ */
+function resolveLink(target: string, source: string, names: string[]): string | null {
+  const t = normalizeLinkTarget(target).toLowerCase();
+  const exact = names.find((n) => n.toLowerCase() === t);
+  if (exact) return exact;
+  const candidates = names.filter((n) => n.toLowerCase().endsWith(`/${t}`));
+  if (candidates.length <= 1) return candidates[0] ?? null;
+  const sameFolder = candidates.filter((n) => posix.dirname(n) === posix.dirname(source));
+  return sameFolder.length === 1 ? sameFolder[0] : null;
+}
+
+export interface RenameResult {
+  /** Notes whose links were rewritten, by their path after the rename */
+  updated: string[];
+  /** Number of links rewritten */
+  links: number;
+  /** Links which might refer to the renamed note, but match another note just as well, so were left alone */
+  ambiguous: { note: string; link: string }[];
 }
 
 export interface NoteEntry {
@@ -207,28 +236,98 @@ export class Obsidian {
     this.frontmatterCache.delete(path);
   }
 
-  /** Renames a note and rewrites wikilinks to it in other notes, as Obsidian does. */
-  async noteRename(from: string, to: string): Promise<void> {
-    const backlinks = await this.noteBacklinks(from);
-    DEBUG(`Renaming ${from} to ${to}, updating links in ${backlinks.length} notes.`);
+  /**
+   * Renames or moves a note, and rewrites links to it as Obsidian does: wikilinks, embeds, and markdown links, keeping
+   * each link's style (name only, full path, or relative). Relative links in the moved note itself are updated too.
+   */
+  async noteRename(from: string, to: string): Promise<RenameResult> {
+    if (!(await this.noteExists(from))) throw new Error(`Note not found: ${from}`);
+    // A change of case alone is fine, even on a case-insensitive filesystem where the new path already "exists".
+    if (from.toLowerCase() !== to.toLowerCase() && (await this.noteExists(to)))
+      throw new Error(`A note already exists at ${to}`);
+
+    const files = (await this.noteList()).filter((p) => !p.split("/").some((s) => s.startsWith(".")));
+    const notes = files.filter((p) => p.endsWith(".md"));
+    const fromName = from.replace(/\.md$/, "");
+    const toName = to.replace(/\.md$/, "");
+    const before = notes.map((p) => p.replace(/\.md$/, ""));
+    // Anything a markdown link can point at: notes (without extension), and attachments.
+    const linkable = new Set([...before, ...files.filter((p) => !p.endsWith(".md"))]);
+    const after = before.map((n) => (n === fromName ? toName : n));
+    const toShort = toName.split("/").pop()!;
+    // Name-only links stay name-only, unless the new name is shared with another note.
+    const shortOrFull = (source: string) => (resolveLink(toShort, source, after) === toName ? toShort : toName);
+
+    const result: RenameResult = { updated: [], links: 0, ambiguous: [] };
+    const writes: [string, string][] = [];
+    for (const source of notes) {
+      const data = await this.noteRead(source);
+      if (data === null) continue;
+      const newSource = source === from ? to : source;
+      let links = 0;
+
+      let updated = data.replace(WIKILINK, (link, target: string) => {
+        const resolved = resolveLink(target, source, before);
+        if (resolved !== fromName) {
+          if (resolved === null && linkResolvesTo(target, fromName)) result.ambiguous.push({ note: newSource, link });
+          return link;
+        }
+        links++;
+        const ext = /\.md\s*$/i.test(target) ? ".md" : "";
+        const newTarget = target.includes("/") ? toName : shortOrFull(newSource);
+        return link.replace(`[[${target}`, () => `[[${newTarget}${ext}`);
+      });
+
+      updated = updated.replace(MDLINK, (link, open: string, angle: string | undefined, plain: string | undefined, close: string) => {
+        const href = angle ?? plain!;
+        if (EXTERNAL_URL.test(href)) return link;
+        const hash = href.indexOf("#");
+        const anchor = hash === -1 ? "" : href.slice(hash);
+        let path = hash === -1 ? href : href.slice(0, hash);
+        if (!path) return link; // A heading in the same note
+        try {
+          if (!angle) path = decodeURIComponent(path);
+        } catch {
+          return link;
+        }
+
+        // Obsidian writes markdown links relative to the linking note, from the vault root, or by shortest path.
+        const relative = normalizeLinkTarget(posix.join(posix.dirname(source), path));
+        const style = linkable.has(relative) ? "relative" : linkable.has(normalizeLinkTarget(path)) ? "root" : "shortest";
+        const resolved = style === "relative" ? relative : resolveLink(path, source, before);
+        if (resolved === null) {
+          if (linkResolvesTo(path, fromName)) result.ambiguous.push({ note: newSource, link });
+          return link;
+        }
+        const targetMoved = resolved === fromName;
+        if (!targetMoved && (style !== "relative" || newSource === source)) return link;
+
+        const newTarget = targetMoved ? toName : resolved;
+        let newPath =
+          style === "relative"
+            ? posix.relative(posix.dirname(newSource), newTarget)
+            : style === "root"
+              ? newTarget
+              : shortOrFull(newSource);
+        if (/\.md$/i.test(path)) newPath += ".md";
+        links++;
+        return `${open}${angle ? `<${newPath}${anchor}>` : `${newPath.replace(/ /g, "%20")}${anchor}`}${close}`;
+      });
+
+      if (updated !== data) writes.push([newSource, updated]);
+      if (links > 0) {
+        result.updated.push(newSource);
+        result.links += links;
+      }
+    }
+
+    DEBUG(`Renaming ${from} to ${to}, updating ${result.links} links in ${result.updated.length} notes.`);
     await fs.mkdir(dirname(join(VAULT_DATA_PATH, to)), { recursive: true });
     await fs.rename(join(VAULT_DATA_PATH, from), join(VAULT_DATA_PATH, to));
     this.frontmatterCache.set(to, this.frontmatterCache.get(from) ?? null);
-    this.frontmatterCache.delete(from);
-
-    const fromName = from.replace(/\.md$/, "");
-    const toName = to.replace(/\.md$/, "");
-    for (const path of backlinks) {
-      const data = await this.noteRead(path);
-      if (data === null) continue;
-      const updated = data.replace(WIKILINK, (link, target: string, rest: string) => {
-        if (!linkResolvesTo(target, fromName)) return link;
-        // Keep the link's style: full path if it used one, otherwise just the name.
-        const newTarget = target.includes("/") ? toName : toName.split("/").pop()!;
-        return link.replace(`[[${target}`, `[[${newTarget}`);
-      });
-      if (updated !== data) await this.noteWrite(path, updated);
-    }
+    if (from !== to) this.frontmatterCache.delete(from);
+    for (const [path, data] of writes) await this.noteWrite(path, data);
+    return result;
   }
 
   /** Paths of notes which link to the given note, via wikilinks, embeds, or markdown links. */
@@ -244,7 +343,8 @@ export class Obsidian {
         for (const [, target] of data.matchAll(WIKILINK)) {
           if (linkResolvesTo(target, name)) return true;
         }
-        for (const [, href] of data.matchAll(MDLINK)) {
+        for (const [, , angle, plain] of data.matchAll(MDLINK)) {
+          const href = angle ?? plain;
           if (/^[a-z][a-z0-9+.-]*:/i.test(href)) continue; // External URL
           let target: string;
           try {

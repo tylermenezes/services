@@ -4,7 +4,14 @@ import { dirname, join } from "path";
 import debug from "debug";
 import config from "@/config";
 import { obsidian, zotero, ZoteroItem } from "@/clients";
-import { getZoteroRawItem, getZoteroRawItems, onZoteroChange, zoteroReady } from "@/datasources";
+import {
+  getZoteroRawItem,
+  getZoteroRawItems,
+  onZoteroChange,
+  zoteroCitationMarkdown,
+  zoteroCiteKey,
+  zoteroReady,
+} from "@/datasources";
 
 const DEBUG = debug("services:activities:zoteroNotes");
 
@@ -56,11 +63,8 @@ async function saveState() {
   await fs.rename(STATE_TMP_FILE, STATE_FILE);
 }
 
-/** Zotero's citation key field, or the one Better BibTeX pins in Extra. */
 function citeKeyOf(item: ZoteroItem): string | null {
-  const key =
-    (item.data.citationKey as string | undefined)?.trim() ||
-    (item.data.extra as string | undefined)?.match(/^\s*Citation Key:\s*(\S+)\s*$/im)?.[1];
+  const key = zoteroCiteKey(item);
   // Characters which aren't allowed in Obsidian note names.
   return key ? key.replace(/[\\/:*?"<>|#^[\]]/g, "-") : null;
 }
@@ -69,35 +73,12 @@ function notePath(citeKey: string) {
   return `${NOTE_DIR}/&${citeKey}.md`;
 }
 
-const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
-
-function decodeEntities(text: string) {
-  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (entity, code: string) => {
-    if (code[0] !== "#") return ENTITIES[code.toLowerCase()] ?? entity;
-    return String.fromCodePoint(
-      code[1].toLowerCase() === "x" ? Number.parseInt(code.slice(2), 16) : Number.parseInt(code.slice(1)),
-    );
-  });
-}
-
-/** Converts Zotero's HTML citation to markdown. */
-function citationMarkdown(html: string) {
-  return decodeEntities(
-    html
-      .replace(/<\/?(i|em)>/g, "*")
-      .replace(/<\/?(b|strong)>/g, "**")
-      .replace(/<[^>]+>/g, ""),
-  )
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 function noteContent(item: ZoteroItem): NoteContent {
   const d = item.data;
   return {
     // Some item types name their title field differently.
     title: String(d.title || d.caseName || d.subject || d.nameOfAct || "").trim(),
-    citation: citationMarkdown(item.bib || ""),
+    citation: zoteroCitationMarkdown(item.bib),
     abstract: (d.abstractNote || "").toString().trim(),
   };
 }

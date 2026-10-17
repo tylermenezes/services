@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import debug from "debug";
 import { sleep } from "@/utils/sleep";
 
@@ -10,6 +11,8 @@ const MAX_RETRIES = 4;
 export class Zotero {
   private prefix: string;
   private backoffUntil = 0;
+  private templates = new Map<string, Record<string, unknown>>();
+  private creatorTypeCache = new Map<string, string[]>();
 
   constructor(
     private apiKey: string,
@@ -19,12 +22,14 @@ export class Zotero {
     this.prefix = `/users/${userId}`;
   }
 
+  /** Requests a path in the user's library, or anywhere in the API if `scoped` is false. */
   private async request(
     path: string,
     params: Record<string, string | number> = {},
     init: RequestInit = {},
+    scoped = true,
   ): Promise<Response> {
-    const url = new URL(`${this.baseUrl}${this.prefix}${path}`);
+    const url = new URL(`${this.baseUrl}${scoped ? this.prefix : ""}${path}`);
     for (const [k, v] of Object.entries(params))
       url.searchParams.set(k, v.toString());
 
@@ -111,6 +116,46 @@ export class Zotero {
     const resp = await this.request(`/items/${attachmentKey}/file/view/url`);
     if (!resp.ok) return null;
     return (await resp.text()).trim() || null;
+  }
+
+  /** An empty item of the given type, with every field it accepts. Throws for unknown item types. */
+  async itemTemplate(itemType: string): Promise<Record<string, unknown>> {
+    if (!this.templates.has(itemType)) {
+      const resp = await this.request("/items/new", { itemType }, {}, false);
+      if (!resp.ok) throw new Error(`Unknown Zotero item type: ${itemType}`);
+      this.templates.set(itemType, await resp.json());
+    }
+    return structuredClone(this.templates.get(itemType)!);
+  }
+
+  /** Creator types (author, editor, ...) the given item type accepts. */
+  async creatorTypes(itemType: string): Promise<string[]> {
+    if (!this.creatorTypeCache.has(itemType)) {
+      const resp = await this.request("/itemTypeCreatorTypes", { itemType }, {}, false);
+      if (!resp.ok) throw new Error(`Unknown Zotero item type: ${itemType}`);
+      const types = (await resp.json()) as { creatorType: string }[];
+      this.creatorTypeCache.set(itemType, types.map((t) => t.creatorType));
+    }
+    return this.creatorTypeCache.get(itemType)!;
+  }
+
+  /** Creates an item, returning it as stored. Requires an API key with write access. */
+  async createItem(data: Partial<ZoteroItemData>): Promise<ZoteroItem> {
+    const resp = await this.request("/items", {}, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        // Makes retries safe: Zotero rejects a second request with the same token instead of creating a duplicate.
+        "Zotero-Write-Token": randomBytes(16).toString("hex"),
+      },
+      body: JSON.stringify([data]),
+    });
+    const result = (await resp.json()) as {
+      successful: Record<string, ZoteroItem>;
+      failed: Record<string, { code: number; message: string }>;
+    };
+    if (result.failed["0"]) throw new Error(`Zotero rejected the item: ${result.failed["0"].message}`);
+    return result.successful["0"];
   }
 
   /** The stored attachment file itself, or null if no file is stored. */

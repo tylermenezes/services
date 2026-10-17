@@ -31,6 +31,38 @@ let markReady: () => void;
 /** Resolves once the whole library has been fetched. */
 export const zoteroReady = new Promise<void>((resolve) => { markReady = resolve; });
 
+/** Zotero's citation key field, or the one Better BibTeX pins in Extra. */
+export function zoteroCiteKey(item: ZoteroItem): string | null {
+  return (
+    (item.data.citationKey as string | undefined)?.trim() ||
+    (item.data.extra as string | undefined)?.match(/^\s*Citation Key:\s*(\S+)\s*$/im)?.[1] ||
+    null
+  );
+}
+
+const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+
+function decodeEntities(text: string) {
+  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (entity, code: string) => {
+    if (code[0] !== "#") return ENTITIES[code.toLowerCase()] ?? entity;
+    return String.fromCodePoint(
+      code[1].toLowerCase() === "x" ? Number.parseInt(code.slice(2), 16) : Number.parseInt(code.slice(1)),
+    );
+  });
+}
+
+/** Converts Zotero's HTML citation to markdown. */
+export function zoteroCitationMarkdown(html: string | undefined) {
+  return decodeEntities(
+    (html || "")
+      .replace(/<\/?(i|em)>/g, "*")
+      .replace(/<\/?(b|strong)>/g, "**")
+      .replace(/<[^>]+>/g, ""),
+  )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function isTopLevel(item: ZoteroItem) {
   return !item.data.parentItem && !["attachment", "note"].includes(item.data.itemType);
 }
@@ -55,6 +87,7 @@ function formatItem(item: ZoteroItem) {
   const attachments = childrenOf(item.key).filter((c) => c.data.itemType === "attachment");
   return {
     ...item.data,
+    citeKey: zoteroCiteKey(item),
     creatorSummary: item.meta.creatorSummary,
     parsedDate: item.meta.parsedDate,
     tags: item.data.tags.map((t) => t.tag),
@@ -76,6 +109,10 @@ export function getZoteroItems(): FormattedZoteroItem[] {
     .sort((a, b) => (a.dateAdded < b.dateAdded ? 1 : -1));
 }
 
+export function getZoteroCollections(): ZoteroCollection[] {
+  return [...collections.values()];
+}
+
 /** Top-level items as returned by the API, including the APA citation. */
 export function getZoteroRawItems(): ZoteroItem[] {
   return [...items.values()].filter(isTopLevel);
@@ -89,6 +126,17 @@ export function getZoteroRawItem(key: string): ZoteroItem | null {
 export function getZoteroItem(key: string): FormattedZoteroItem | null {
   const item = items.get(key);
   return item && isTopLevel(item) ? formatItem(item) : null;
+}
+
+/** The key of the top-level item with the given citation key, matching case-insensitively if there's no exact match. */
+export function findZoteroKeyByCiteKey(citeKey: string): string | null {
+  const topLevel = [...items.values()].filter(isTopLevel);
+  const lower = citeKey.toLowerCase();
+  return (
+    topLevel.find((i) => zoteroCiteKey(i) === citeKey)?.key ||
+    topLevel.find((i) => zoteroCiteKey(i)?.toLowerCase() === lower)?.key ||
+    null
+  );
 }
 
 /** Resolves an item or attachment key to the attachment holding its PDF, preferring files stored in Zotero. */

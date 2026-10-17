@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
     "@prisma/client": "6.4.1",
     "array-from-async": "^3.0.0",
     "cross-fetch": "^4.0.0",
@@ -31,7 +32,9 @@
     "todoist": "^1.1.0",
     "tsdav": "^2.0.9",
     "unified": "^10.1.2",
-    "yaml": "^2.4.3"
+    "unpdf": "^1.9.0",
+    "yaml": "^2.4.3",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@flydotio/dockerfile": "^0.5.7",
