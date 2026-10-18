@@ -6,11 +6,13 @@ import { TripIt } from "./TripIt";
 import { DAVClient } from "tsdav";
 import { Timeshifter } from "./Timeshifter";
 import { Zotero } from "./Zotero";
+import { OmniFocus } from "./OmniFocus";
 import LastFmApi from "lastfm-nodejs-client";
 
 export * from "./TripIt";
 export * from "./Obsidian";
 export * from "./Zotero";
+export * from "./OmniFocus";
 
 export const lastFm = LastFmApi();
 lastFm.config.api_key = config.lastFm.apiKey;
@@ -28,6 +30,17 @@ export const obsidian = new Obsidian();
 export const zotero =
   config.zotero.apiKey && config.zotero.userId
     ? new Zotero(config.zotero.apiKey, config.zotero.userId)
+    : null;
+
+export const omnifocus =
+  config.omnifocus.username && config.omnifocus.password
+    ? new OmniFocus({
+        username: config.omnifocus.username,
+        password: config.omnifocus.password,
+        passphrase: config.omnifocus.passphrase,
+        zone: config.omnifocus.timezone,
+        clientName: config.omnifocus.clientName,
+      })
     : null;
 
 export const todoist = Todoist(config.todoist.apiKey);

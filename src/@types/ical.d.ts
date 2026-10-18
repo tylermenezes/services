@@ -111,6 +111,8 @@ declare module 'ical.js' {
   export class Time {
     public static fromString(str: string): Time;
 
+    public static fromDateTimeString(str: string): Time;
+
     public static fromJSDate(aDate: Date | null, useUTC: boolean): Time;
 
     public static fromData(aData: TimeJsonData): Time;
@@ -267,6 +269,8 @@ declare module 'ical.js' {
   }
 
   export class Recur {
+    public static fromString(str: string): Recur;
+
     constructor(data?: RecurData);
 
     public until: Time | null;

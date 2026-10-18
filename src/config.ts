@@ -38,6 +38,10 @@ export default {
     disableActivities: process.env.DISABLE_ACTIVITIES === "1",
     debug: process.env.NODE_ENV !== "production",
     db: process.env.DB!,
+    // Where the server is reachable, for OAuth metadata and redirects.
+    publicUrl: (process.env.PUBLIC_URL || "https://svc.tyler.vc").replace(/\/+$/, ""),
+    // Lets OAuth clients identify themselves with http:// or private-network metadata URLs. For local testing only.
+    allowInsecureOAuthClients: process.env.OAUTH_DANGEROUSLY_ALLOW_INSECURE_CLIENTS === "1",
   },
   todoist: {
     apiKey: process.env.TODOIST_API_KEY!,
@@ -94,6 +98,15 @@ export default {
     // Optional; the Zotero datasource is skipped if either is unset.
     apiKey: process.env.ZOTERO_API_KEY,
     userId: process.env.ZOTERO_USER_ID,
+  },
+  omnifocus: {
+    // Optional; the OmniFocus tools are unavailable if either is unset.
+    username: process.env.OMNIFOCUS_USERNAME,
+    password: process.env.OMNIFOCUS_PASSWORD,
+    // Defaults to the account password, which is OmniFocus's default.
+    passphrase: process.env.OMNIFOCUS_PASSPHRASE,
+    timezone: process.env.OMNIFOCUS_TIMEZONE || Intl.DateTimeFormat().resolvedOptions().timeZone,
+    clientName: process.env.OMNIFOCUS_CLIENT_NAME || "svc.tyler.vc",
   },
   texServer: process.env.TEX_SERVER,
 };

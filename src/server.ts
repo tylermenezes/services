@@ -7,6 +7,9 @@ const DEBUG = debug('services:server');
 
 const express = Express();
 
+// Behind Fly's proxy, so the client's address is the last one it forwards.
+express.set('trust proxy', 1);
+
 export async function startServer() {
   // Register all routes
   express.use(routes);
