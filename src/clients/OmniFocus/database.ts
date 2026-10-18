@@ -138,7 +138,11 @@ export class Database {
       const primary = idref(fields, "context");
       if (primary) add(id, primary);
     }
-    for (const fields of this.objects["task-to-tag"].values()) {
+    // In the task's own order for its tags, after its primary tag.
+    const joins = [...this.objects["task-to-tag"].values()].sort((a, b) =>
+      (text(a, "rank-in-task") ?? "").localeCompare(text(b, "rank-in-task") ?? ""),
+    );
+    for (const fields of joins) {
       const [task, tag] = [idref(fields, "task"), idref(fields, "context")];
       if (task && tag) add(task, tag);
     }

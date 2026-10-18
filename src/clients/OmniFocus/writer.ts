@@ -69,6 +69,7 @@ export interface NewTask {
   /** Already formatted with taskDate(). */
   due?: string;
   defer?: string;
+  planned?: string;
   flagged?: boolean;
   estimatedMinutes?: number;
   rank: number;
@@ -88,7 +89,7 @@ export function newTaskXml(id: string, task: NewTask): string[] {
     "<hidden/>",
     task.tagIds.length ? `<context idref="${task.tagIds[0]}"/>` : "<context/>",
     task.defer ? `<start>${task.defer}</start>` : "<start/>",
-    "<planned/>",
+    task.planned ? `<planned>${task.planned}</planned>` : "<planned/>",
     task.due ? `<due>${task.due}</due>` : "<due/>",
     "<completed/>",
     task.estimatedMinutes ? `<estimated-minutes>${task.estimatedMinutes}</estimated-minutes>` : "<estimated-minutes/>",
@@ -101,11 +102,29 @@ export function newTaskXml(id: string, task: NewTask): string[] {
     "<due-date-alarm-policy/><defer-date-alarm-policy/><latest-time-to-start-alarm-policy/><planned-date-alarm-policy/>",
     "</task>",
   ];
-  return [parts.join(""), ...task.tagIds.map((tagId) => tagJoinXml(id, tagId, now))];
+  const ranks = tagRanksAfter([], task.tagIds.length);
+  return [parts.join(""), ...task.tagIds.map((tagId, i) => tagJoinXml(id, tagId, ranks[i], now))];
 }
 
-export function tagJoinXml(taskId: string, tagId: string, added = timestamp()) {
-  return `<task-to-tag id="${createId()}"><added>${added}</added><task idref="${taskId}"/><context idref="${tagId}"/></task-to-tag>`;
+/**
+ * Keys ordering a task's tags, after the ones it already has. OmniFocus uses short hex strings compared as text (it
+ * gave a task's only tag "0da4"); how it picks them isn't known, so these just keep to that shape.
+ */
+export function tagRanksAfter(existing: string[], count: number): string[] {
+  const last = existing.filter((r) => /^[0-9a-f]+$/.test(r)).sort().pop();
+  let next = last ? Number.parseInt(last.slice(0, 4).padEnd(4, "0"), 16) + 0x1000 : 0x1000;
+  const ranks: string[] = [];
+  for (let i = 0; i < count; i++, next += 0x1000)
+    ranks.push(next <= 0xffff ? next.toString(16).padStart(4, "0") : `${last ?? "ffff"}${"8".repeat(i + 1)}`);
+  return ranks;
+}
+
+/** A tag assignment, which OmniFocus identifies as `<task id>.<tag id>`. */
+export function tagJoinXml(taskId: string, tagId: string, rankInTask: string, added = timestamp()) {
+  return (
+    `<task-to-tag id="${taskId}.${tagId}"><added>${added}</added><task idref="${taskId}"/>` +
+    `<context idref="${tagId}"/><rank-in-task>${rankInTask}</rank-in-task><rank-in-tag/></task-to-tag>`
+  );
 }
 
 /** Serializes parsed fields back to XML. Notes are kept as the raw rich text they were parsed as. */

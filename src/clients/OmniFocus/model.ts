@@ -79,6 +79,8 @@ export class Model {
   readonly folders = new Map<string, FolderView>();
   readonly perspectives: Perspective[];
   readonly dueSoon: DateTime;
+  /** Times of day OmniFocus gives dates entered without one, as "HH:mm:ss". */
+  readonly defaultTimes: { due: string; defer: string; planned: string };
 
   constructor(
     private db: Database,
@@ -89,6 +91,12 @@ export class Model {
     this.buildTags();
     this.buildTasks();
     this.dueSoon = now.plus({ seconds: this.dueSoonSeconds() });
+    const defer = this.timeSetting("DefaultStartTime") ?? "00:00:00";
+    this.defaultTimes = {
+      due: this.timeSetting("DefaultDueTime") ?? "17:00:00",
+      defer,
+      planned: this.timeSetting("DefaultPlannedTime") ?? defer,
+    };
     this.perspectives = perspectives(db);
   }
 
@@ -97,6 +105,13 @@ export class Model {
     // Dates without an offset are "floating" local times.
     const dt = DateTime.fromISO(value, { zone: this.zone });
     return dt.isValid ? dt : null;
+  }
+
+  /** A time-of-day setting, which is only stored once it's changed from OmniFocus's default. */
+  private timeSetting(id: string): string | null {
+    const plist = this.db.objects.setting.get(id)?.plist as Fields | undefined;
+    const value = plist && text(plist, "string");
+    return value && /^\d{2}:\d{2}(:\d{2})?$/.test(value) ? value : null;
   }
 
   private dueSoonSeconds(): number {

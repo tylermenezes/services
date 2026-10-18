@@ -9,14 +9,16 @@ import {
   Model,
   perspectiveFilter,
   rankAfter,
+  TaskChanges,
   taskDate,
   TaskView,
 } from "@/clients";
 import { json } from "./util";
 
 const NOTE_PREVIEW = 500;
-const DEFAULT_DUE_TIME = "17:00";
-const DEFAULT_DEFER_TIME = "00:00";
+const DATE_HELP =
+  "ISO 8601. A date alone gets the default time from the user's OmniFocus settings (5 PM for due dates unless " +
+  `changed); a time without an offset is in the user's time zone (${config.omnifocus.timezone}).`;
 
 function client() {
   if (!omnifocus) throw new Error("OmniFocus is not configured (OMNIFOCUS_USERNAME and OMNIFOCUS_PASSWORD).");
@@ -105,14 +107,19 @@ function resolveTag(model: Model, input: string) {
 
 /** Finds a folder by ID, full path, or name; returns its path. */
 function resolveFolder(model: Model, input: string): string {
-  if (model.folders.has(input)) return model.folders.get(input)!.path;
+  return model.folders.get(resolveFolderId(model, input))!.path;
+}
+
+/** Finds a folder by ID, full path, or name; returns its ID. */
+function resolveFolderId(model: Model, input: string): string {
+  if (model.folders.has(input)) return input;
   const needle = input.trim().toLowerCase();
   const folders = [...model.folders.values()];
   const byPath = folders.filter((f) => f.path.toLowerCase() === needle);
   const matches = byPath.length ? byPath : folders.filter((f) => f.name.toLowerCase() === needle);
   if (matches.length === 0) throw new Error(`No OmniFocus folder named "${input}".`);
   if (matches.length > 1) ambiguous("folder", input, matches.map((f) => `${f.id}: ${f.path}`));
-  return matches[0].path;
+  return matches[0].id;
 }
 
 function inFolder(path: string | null, folder: string) {
@@ -347,20 +354,15 @@ export function registerOmniFocusTools(server: McpServer) {
           .optional()
           .describe("Project name, 'Folder / Name', or ID; or a task ID to make this a subtask. Defaults to the inbox."),
         tags: z.array(z.string()).default([]).describe("Tag names, paths, or IDs. The tags must already exist."),
-        due: z
-          .string()
-          .optional()
-          .describe(
-            `ISO 8601 due date. A date alone is due at ${DEFAULT_DUE_TIME}; a time without an offset is in the ` +
-              `user's time zone (${config.omnifocus.timezone}).`,
-          ),
-        defer: z.string().optional().describe("ISO 8601 defer date, when the task becomes available. A date alone is midnight."),
+        due: z.string().optional().describe(`Due date. ${DATE_HELP}`),
+        defer: z.string().optional().describe(`Defer date, when the task becomes available. ${DATE_HELP}`),
+        planned: z.string().optional().describe(`Planned date, when the user intends to work on it. ${DATE_HELP}`),
         flagged: z.boolean().default(false),
         estimated_minutes: z.number().int().min(1).optional(),
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     },
-    async ({ name, note, project, tags, due, defer, flagged, estimated_minutes }) => {
+    async ({ name, note, project, tags, due, defer, planned, flagged, estimated_minutes }) => {
       const of = client();
       // Resolve everything before writing, so a typo doesn't leave a half-filed task.
       const model = await of.sync();
@@ -379,8 +381,9 @@ export function registerOmniFocusTools(server: McpServer) {
         note,
         parentId,
         tagIds,
-        due: due ? taskDate(due, DEFAULT_DUE_TIME, model.zone) : undefined,
-        defer: defer ? taskDate(defer, DEFAULT_DEFER_TIME, model.zone) : undefined,
+        due: due ? taskDate(due, model.defaultTimes.due, model.zone) : undefined,
+        defer: defer ? taskDate(defer, model.defaultTimes.defer, model.zone) : undefined,
+        planned: planned ? taskDate(planned, model.defaultTimes.planned, model.zone) : undefined,
         flagged,
         estimatedMinutes: estimated_minutes,
         rank: (m) =>
@@ -391,6 +394,97 @@ export function registerOmniFocusTools(server: McpServer) {
           ),
       });
       return json({ created: summarize(updated.tasks.get(id)!, updated) });
+    },
+  );
+
+  server.registerTool(
+    "omnifocus_edit_task",
+    {
+      title: "Edit OmniFocus task",
+      description:
+        "Changes fields on an existing task or project. Only the fields given change. Get IDs from " +
+        "omnifocus_list_tasks or omnifocus_list_projects. To check a task off, use omnifocus_complete_tasks.",
+      inputSchema: {
+        id: z.string().describe("ID of the task or project."),
+        name: z.string().min(1).optional(),
+        note: z.string().optional().describe("Replaces the whole note. An empty string clears it."),
+        flagged: z.boolean().optional(),
+        due: z.string().nullable().optional().describe(`New due date, or null or "" to clear it. ${DATE_HELP}`),
+        defer: z.string().nullable().optional().describe(`New defer date, or null or "" to clear it. ${DATE_HELP}`),
+        planned: z.string().nullable().optional().describe(`New planned date, or null or "" to clear it. ${DATE_HELP}`),
+        estimated_minutes: z.number().int().min(0).nullable().optional().describe("Null or 0 clears it."),
+        tags: z.array(z.string()).optional().describe("Replaces all of its tags: names, paths, or IDs. [] removes them all."),
+        add_tags: z.array(z.string()).optional().describe("Tags to add, keeping the others."),
+        remove_tags: z.array(z.string()).optional().describe("Tags to remove, keeping the others."),
+        move_to: z
+          .string()
+          .optional()
+          .describe("Tasks only: a project's name, 'Folder / Name', or ID; a task ID to nest it under; or 'inbox'."),
+        folder: z
+          .string()
+          .nullable()
+          .optional()
+          .describe("Projects only: a folder's name, path, or ID to move it to, or null for the top level."),
+        type: z
+          .enum(["sequential", "parallel", "single_actions"])
+          .optional()
+          .describe("How its subtasks are worked through. single_actions is for projects only."),
+        complete_with_last_action: z
+          .boolean()
+          .optional()
+          .describe("Whether completing its last remaining subtask completes it too."),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    },
+    async (args) => {
+      const of = client();
+      // Resolve names first, so a typo fails before anything is written.
+      const model = await of.sync();
+      const task = model.tasks.get(args.id);
+      if (!task) throw new Error(`No OmniFocus task with ID ${args.id}.`);
+      const clear = (v: string | null | undefined) => (v === null || v === "" ? null : v);
+      const changes: TaskChanges = {};
+
+      if (args.name !== undefined) changes.name = args.name;
+      if (args.note !== undefined) changes.note = clear(args.note);
+      if (args.flagged !== undefined) changes.flagged = args.flagged;
+      for (const [field, time] of [["due", model.defaultTimes.due], ["defer", model.defaultTimes.defer], ["planned", model.defaultTimes.planned]] as const) {
+        const value = args[field];
+        if (value !== undefined) changes[field] = clear(value) === null ? null : taskDate(value!, time, model.zone);
+      }
+      if (args.estimated_minutes !== undefined) changes.estimatedMinutes = args.estimated_minutes || null;
+      if (args.tags || args.add_tags || args.remove_tags) {
+        const ids = (names?: string[]) => names?.map((t) => resolveTag(model, t).id);
+        changes.tags = { set: ids(args.tags), add: ids(args.add_tags), remove: ids(args.remove_tags) };
+      }
+      if (args.move_to !== undefined) {
+        if (task.isProject) throw new Error(`"${task.name}" is a project; use folder to move it.`);
+        if (args.move_to.trim().toLowerCase() === "inbox") changes.parentId = null;
+        else {
+          const target = model.tasks.get(args.move_to);
+          const parent = target && !target.isProject ? target : resolveProject(model, args.move_to);
+          if (model.descendants(task.id).some((t) => t.id === parent.id))
+            throw new Error(`Can't move "${task.name}" inside itself.`);
+          if (parent.status !== "remaining") throw new Error(`"${parent.name}" is ${parent.status}; move it somewhere else.`);
+          changes.parentId = parent.id;
+        }
+      }
+      if (args.folder !== undefined) {
+        if (!task.isProject) throw new Error(`"${task.name}" isn't a project; use move_to to move it.`);
+        changes.folderId = args.folder === null || args.folder === "" ? null : resolveFolderId(model, args.folder);
+      }
+      if (args.type !== undefined) {
+        if (args.type === "single_actions" && !task.isProject)
+          throw new Error(`Only projects can be single-action lists; "${task.name}" is a task.`);
+        changes.type = args.type;
+      }
+      if (args.complete_with_last_action !== undefined) changes.completeWithLastAction = args.complete_with_last_action;
+      if (!Object.keys(changes).length) throw new Error("Nothing to change; give at least one field.");
+
+      const updated = await of.editTask(args.id, changes, (latest) => {
+        if (!latest.tasks.has(args.id)) throw new Error(`Task ${args.id} was deleted before it could be edited.`);
+      });
+      return json({ updated: summarize(updated.tasks.get(args.id)!, updated), changed: Object.keys(changes) });
     },
   );
 

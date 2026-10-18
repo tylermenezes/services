@@ -9,12 +9,32 @@ import { bool, Database, Fields, idref, int, parseTransaction, ParsedTransaction
 import { cloneId, cloneRank, nextDates, repetitionOf, shiftDates } from "./repeat";
 import { Model } from "./model";
 import { WebDav } from "./webdav";
-import { completeProjectXml, completeTaskXml, createId, escapeXml, fieldsXml, NewTask, newTaskXml, tagJoinXml, timestamp, transactionXml } from "./writer";
+import { completeProjectXml, completeTaskXml, createId, escapeXml, fieldsXml, noteXml, rankAfter, NewTask, newTaskXml, tagJoinXml, tagRanksAfter, timestamp, transactionXml } from "./writer";
 
 export * from "./model";
 export { describePerspective, findPerspective, perspectiveFilter } from "./perspectives";
 export type { Perspective } from "./perspectives";
 export { taskDate, rankAfter } from "./writer";
+
+export interface TaskChanges {
+  name?: string;
+  /** Null or empty clears it. */
+  note?: string | null;
+  flagged?: boolean;
+  /** Already formatted with taskDate(); null clears it. */
+  due?: string | null;
+  defer?: string | null;
+  planned?: string | null;
+  estimatedMinutes?: number | null;
+  /** Tag IDs: a new set, and/or ones to add and remove. */
+  tags?: { set?: string[]; add?: string[]; remove?: string[] };
+  /** Moves a task: into a project or under another task, or to the inbox if null. */
+  parentId?: string | null;
+  /** Moves a project: into a folder, or to the top level if null. */
+  folderId?: string | null;
+  type?: "sequential" | "parallel" | "single_actions";
+  completeWithLastAction?: boolean;
+}
 
 const DEBUG = debug("services:clients:omnifocus");
 
@@ -334,6 +354,82 @@ export class OmniFocus {
   }
 
   /**
+   * Changes fields on a task or project, as an update containing only what changed, the way OmniFocus records edits.
+   * Checks the task against the latest sync with `check`, which should throw if the edit isn't allowed.
+   */
+  async editTask(id: string, changes: TaskChanges, check: (model: Model) => void) {
+    return this.write((model) => {
+      check(model);
+      return this.editXml(model, id, changes);
+    });
+  }
+
+  private editXml(model: Model, id: string, changes: TaskChanges): string[] {
+    const fields = this.db.tasks.get(id);
+    const task = model.tasks.get(id);
+    if (!fields || !task) throw new Error(`No OmniFocus task with ID ${id}.`);
+    const now = timestamp();
+    const set: Record<string, string> = { modified: `<modified>${now}</modified>` };
+    const elements: string[] = [];
+    const touch = (parentId: string | null) => {
+      if (parentId && parentId !== id && !elements.some((e) => e.startsWith(`<task id="${parentId}" `)))
+        elements.push(`<task id="${parentId}" op="update"><modified>${now}</modified></task>`);
+    };
+    const date = (field: string, value: string | null) => (value ? `<${field}>${value}</${field}>` : `<${field}/>`);
+
+    if (changes.name !== undefined) set.name = `<name>${escapeXml(changes.name)}</name>`;
+    if (changes.note !== undefined) set.note = changes.note ? noteXml(changes.note) : "<note/>";
+    if (changes.flagged !== undefined) set.flagged = `<flagged>${changes.flagged}</flagged>`;
+    if (changes.due !== undefined) set.due = date("due", changes.due);
+    if (changes.defer !== undefined) set.start = date("start", changes.defer);
+    if (changes.planned !== undefined) set.planned = date("planned", changes.planned);
+    if (changes.estimatedMinutes !== undefined)
+      set["estimated-minutes"] = date("estimated-minutes", changes.estimatedMinutes ? String(changes.estimatedMinutes) : null);
+    if (changes.completeWithLastAction !== undefined)
+      set["completed-by-children"] = `<completed-by-children>${changes.completeWithLastAction}</completed-by-children>`;
+
+    // Projects keep their folder and single-action setting in <project>, which OmniFocus restates whole.
+    if (task.isProject && (changes.folderId !== undefined || changes.type !== undefined)) {
+      const project = { ...(fields.project as Fields) };
+      if (changes.folderId !== undefined) project.folder = changes.folderId ? { "@_idref": changes.folderId } : "";
+      if (changes.type !== undefined) project.singleton = String(changes.type === "single_actions");
+      set.project = fieldsXml({ project });
+    }
+    if (changes.type !== undefined && changes.type !== "single_actions") set.order = `<order>${changes.type}</order>`;
+
+    if (changes.parentId !== undefined) {
+      const parent = changes.parentId;
+      const siblings = [...this.db.tasks]
+        .filter(([sid, f]) => sid !== id && (parent ? idref(f, "task") === parent : bool(f, "inbox") && !idref(f, "task")))
+        .map(([, f]) => int(f, "rank") ?? 0);
+      set.inbox = `<inbox>${!parent}</inbox>`;
+      set.task = parent ? `<task idref="${parent}"/>` : "<task/>";
+      set.rank = `<rank>${rankAfter(siblings)}</rank>`;
+      touch(idref(fields, "task"));
+      touch(parent);
+    }
+
+    if (changes.tags) {
+      const current = task.tagIds;
+      let next = changes.tags.set ?? current;
+      next = [...new Set([...next, ...(changes.tags.add ?? [])])].filter((t) => !changes.tags!.remove?.includes(t));
+      const joins = [...this.db.objects["task-to-tag"]].filter(([, j]) => idref(j, "task") === id);
+      for (const [joinId, j] of joins)
+        if (!next.includes(idref(j, "context") ?? "")) elements.push(`<task-to-tag id="${joinId}" op="delete"/>`);
+      const adding = next.filter((tagId) => !joins.some(([, j]) => idref(j, "context") === tagId));
+      const ranks = tagRanksAfter(joins.map(([, j]) => text(j, "rank-in-task") ?? ""), adding.length);
+      adding.forEach((tagId, i) => elements.push(tagJoinXml(id, tagId, ranks[i], now)));
+      // The first tag is also the task's primary tag, which older clients read.
+      if ((idref(fields, "context") ?? null) !== (next[0] ?? null))
+        set.context = next.length ? `<context idref="${next[0]}"/>` : "<context/>";
+    }
+
+    const order = ["project", "inbox", "task", "modified", ...TASK_FIELD_ORDER.filter((k) => !["project", "inbox", "task"].includes(k))];
+    elements.unshift(`<task id="${id}" op="update">${order.filter((k) => set[k]).map((k) => set[k]).join("")}</task>`);
+    return elements;
+  }
+
+  /**
    * The elements which complete the given tasks, as completeTasks() describes. Adds parents completed along with them
    * to `alsoCompleted`.
    */
@@ -409,7 +505,7 @@ export class OmniFocus {
   private tagCopiesXml(from: string, to: string) {
     return [...this.db.objects["task-to-tag"].values()]
       .filter((j) => idref(j, "task") === from && idref(j, "context"))
-      .map((j) => tagJoinXml(to, idref(j, "context")!));
+      .map((j) => tagJoinXml(to, idref(j, "context")!, text(j, "rank-in-task") ?? ""));
   }
 
   /**
