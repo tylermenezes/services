@@ -117,5 +117,5 @@ export async function scheduleTripItUpdate() {
   try {
     await tripItUpdate();
   } catch (ex) { DEBUG(ex); }
-  const job = schedule.scheduleJob('10 * * * *', tripItUpdate);
+  const job = schedule.scheduleJob('10 * * * *', () => tripItUpdate().catch(DEBUG));
 }

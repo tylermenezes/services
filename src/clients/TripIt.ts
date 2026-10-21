@@ -20,7 +20,7 @@ export class TripIt {
 	getRequestToken(): Promise<[string, string]> {
     const result = new Promise<[string, string]>((resolve, reject) => {
       this.oauth.getOAuthRequestToken((err, token, secret) => {
-        if (err) reject(err);
+        if (err) return reject(err);
         resolve([token, secret]);
       });
     });
@@ -30,7 +30,7 @@ export class TripIt {
 	getAccessToken(requestToken: string, requestTokenSecret: string): Promise<[string, string]> {
     const result = new Promise<[string, string]>((resolve, reject) => {
       this.oauth.getOAuthAccessToken(requestToken, requestTokenSecret, (err, token, secret) => {
-        if (err) reject(err);
+        if (err) return reject(err);
         resolve([token, secret])
       })
     });
@@ -41,8 +41,12 @@ export class TripIt {
 		var url = "https://api.tripit.com/v1" + path + "/format/json";
     const result = new Promise<T>((resolve, reject) => {
       this.oauth.getProtectedResource(url, method, accessToken, accessTokenSecret, (err, data) => {
-        if (err) reject(err);
-        resolve(JSON.parse(data as string) as T);
+        if (err) return reject(err);
+        try {
+          resolve(JSON.parse(data as string) as T);
+        } catch (ex) {
+          reject(new Error(`TripIt returned non-JSON response for ${path}: ${String(data).slice(0, 200)}`));
+        }
       })
     });
     return result;
